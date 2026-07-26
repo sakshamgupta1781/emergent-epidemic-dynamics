@@ -1,0 +1,265 @@
+/* ============================================================================
+ * styles.css — Epidemic Lab
+ * Dark theme, CSS-grid layout matching the reference wireframe:
+ *   full-width global bar on top, then arm rows of
+ *   [ parameters | simulation | SIR chart ].
+ * ========================================================================== */
+
+:root {
+  --bg: #0f131a;
+  --panel: #161c26;
+  --panel-2: #1c2330;
+  --border: #283242;
+  --text: #e6eaf0;
+  --muted: #8892a6;
+  --accent: #5b8def;
+  --s: #2ecc71;   /* susceptible */
+  --i: #e74c3c;   /* infected */
+  --r: #3498db;   /* removed */
+  --diff: #f1c40f; /* highlight for changed params */
+  --diff-bg: rgba(241, 196, 15, 0.12);
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ------------------------------- Global bar ------------------------------- */
+.global-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  background: linear-gradient(180deg, #182030, #131924);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.3px;
+}
+.brand .subtitle {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.global-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+.ctl-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.ctl-label b { color: var(--text); }
+.ctl-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: #232c3c; }
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1220;
+  font-weight: 600;
+}
+.btn-primary:hover { background: #6d9bf2; }
+
+.view-toggle { display: inline-flex; }
+.view-toggle .toggle {
+  border-radius: 0;
+  padding: 8px 16px;
+}
+.view-toggle .toggle:first-child { border-radius: 8px 0 0 8px; }
+.view-toggle .toggle:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+.view-toggle .toggle.active {
+  background: var(--accent);
+  color: #0b1220;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-left: auto;
+  align-items: center;
+}
+.legend-item { color: var(--muted); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot.s { background: var(--s); }
+.dot.i { background: var(--i); }
+.dot.r { background: var(--r); }
+
+/* --------------------------------- Arms ---------------------------------- */
+.arms {
+  flex: 1;
+  display: grid;
+  gap: 16px;
+  padding: 16px 20px 24px;
+  /* columns: params | simulation (stretch) | chart */
+  grid-template-columns: 300px minmax(320px, 1fr) minmax(320px, 1fr);
+  align-content: start;
+}
+
+.arm {
+  display: contents; /* children participate in the parent grid rows */
+}
+
+.arm-params, .arm-sim, .arm-chart {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+
+.arm-head h2 { margin: 0 0 10px; font-size: 15px; }
+#arm-control .arm-head h2::before { content: "⬤ "; color: var(--muted); font-size: 9px; vertical-align: middle; }
+#arm-test .arm-head h2::before { content: "⬤ "; color: var(--accent); font-size: 9px; vertical-align: middle; }
+
+.sim-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sim-head .counts b { color: var(--text); }
+
+/* Simulation canvas keeps a square-ish aspect and centers in its cell. */
+.canvas-wrap {
+  flex: 1;
+  position: relative;
+  background: #0b0f16;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 300px;
+}
+.canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 300px;
+}
+.chart-wrap canvas { position: absolute; inset: 0; }
+
+/* ----------------------------- Param panels ------------------------------ */
+.param-panel { overflow-y: auto; padding-right: 4px; }
+
+.param-group { margin-bottom: 14px; }
+.param-group > .group-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+.param-row { margin-bottom: 12px; }
+.param-row .param-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.param-row .p-label { font-size: 12.5px; }
+.param-row .p-value {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 7px;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* Highlight a test-arm parameter that differs from the control arm. */
+.param-row.diff .p-label,
+.param-row.diff .p-value { color: var(--diff); }
+.param-row.diff .p-value { border-color: var(--diff); background: var(--diff-bg); }
+.param-row.diff { position: relative; }
+.param-row.diff .delta {
+  font-size: 10.5px;
+  color: var(--diff);
+  margin-left: 6px;
+}
+.delta { display: none; }
+.param-row.diff .delta { display: inline; }
+
+/* ------------------------------ View modes -------------------------------- */
+/* Single view: show only the treatment arm, hide the control arm entirely. */
+.arms.single-view #arm-control { display: none; }
+.arms.single-view #arm-test .arm-head h2::after { content: ""; }
+
+/* In single view the treatment arm sits in the single row automatically
+   because the control arm's `display:contents` children are hidden. */
+
+/* Responsive: stack columns on narrow screens. */
+@media (max-width: 1100px) {
+  .arms {
+    grid-template-columns: 1fr;
+  }
+  .arm { display: block; }
+  .arm { border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px; }
+  .arm-params, .arm-sim, .arm-chart { margin-bottom: 12px; }
+}

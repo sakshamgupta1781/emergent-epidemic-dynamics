@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Epidemic Lab — SIR Spread Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ============================ Global controls ======================== -->
+  <header class="global-bar">
+    <div class="brand">
+      <h1>Epidemic Lab</h1>
+      <span class="subtitle">Visualize viral spread &amp; run A/B experiments on the SIR curve</span>
+    </div>
+
+    <div class="global-controls">
+      <button id="playPause" class="btn btn-primary" type="button">▶ Play</button>
+      <button id="reset" class="btn" type="button">⟲ Reset</button>
+
+      <label class="ctl">
+        <span class="ctl-label">Dot speed <b id="dotSpeedVal">1.0×</b></span>
+        <input id="dotSpeed" type="range" min="0" max="3" step="0.1" value="1" />
+      </label>
+
+      <label class="ctl">
+        <span class="ctl-label">Time multiplier <b id="timeMultVal">1.0×</b></span>
+        <input id="timeMult" type="range" min="0.25" max="8" step="0.25" value="1" />
+      </label>
+
+      <label class="ctl ctl-check">
+        <input id="sharedSeed" type="checkbox" checked />
+        <span>Shared seed</span>
+      </label>
+
+      <div class="view-toggle" role="group" aria-label="View mode">
+        <button id="viewSingle" class="btn toggle active" type="button">Single</button>
+        <button id="viewCompare" class="btn toggle" type="button">Compare</button>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><i class="dot s"></i>Susceptible</span>
+      <span class="legend-item"><i class="dot i"></i>Infected</span>
+      <span class="legend-item"><i class="dot r"></i>Removed</span>
+    </div>
+  </header>
+
+  <!-- =============================== Arms =============================== -->
+  <main id="arms" class="arms single-view">
+
+    <!-- Control arm (top row in compare view; hidden in single view) -->
+    <section class="arm" id="arm-control" data-arm="control">
+      <div class="arm-params">
+        <div class="arm-head">
+          <h2>Control arm</h2>
+        </div>
+        <div class="param-panel" data-panel="control"></div>
+      </div>
+      <div class="arm-sim">
+        <div class="sim-head">
+          <span class="counts" data-counts="control">S 0 · I 0 · R 0</span>
+          <span class="peak" data-peak="control">Peak I: 0</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas data-sim="control"></canvas>
+        </div>
+      </div>
+      <div class="arm-chart">
+        <div class="chart-wrap">
+          <canvas data-chart="control"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Test arm / treatment (bottom row in compare; the ONLY row in single) -->
+    <section class="arm" id="arm-test" data-arm="test">
+      <div class="arm-params">
+        <div class="arm-head">
+          <h2 data-arm-title="test">Treatment</h2>
+        </div>
+        <div class="param-panel" data-panel="test"></div>
+      </div>
+      <div class="arm-sim">
+        <div class="sim-head">
+          <span class="counts" data-counts="test">S 0 · I 0 · R 0</span>
+          <span class="peak" data-peak="test">Peak I: 0</span>
+        </div>
+        <div class="canvas-wrap">
+          <canvas data-sim="test"></canvas>
+        </div>
+      </div>
+      <div class="arm-chart">
+        <div class="chart-wrap">
+          <canvas data-chart="test"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Vendored Chart.js (works fully offline). CDN alternative:
+       https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js -->
+  <script src="lib/chart.umd.min.js"></script>
+
+  <!-- App scripts (classic scripts, load order matters; share window.App) -->
+  <script src="src/rng.js"></script>
+  <script src="src/params.js"></script>
+  <script src="src/agent.js"></script>
+  <script src="src/simulation.js"></script>
+  <script src="src/charts.js"></script>
+  <script src="src/ui.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Design mockups / local scratch (not part of the app)
+*.pdf
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
