@@ -26,6 +26,7 @@
   var MAX_SUBSTEP = 1 / 30;    // clamp integration step for stability at high speed
   var RECORD_INTERVAL = 0.2;   // sim-seconds between SIR history samples
   var MAX_HISTORY = 3000;      // cap history length
+  var RIPPLE_MS = 1500;        // real-ms for one infection-ring expansion cycle
 
   var COLORS = {
     S: '#2ecc71', // green  — susceptible
@@ -131,8 +132,6 @@
 
     for (i = 0; i < n; i++) {
       a = agents[i];
-      if (a.state === I) { a.pulse = (a.pulse + dt * 2) % 1; }
-
       var frozen = a.isQuarantined;
       if (frozen) { continue; }
 
@@ -236,7 +235,9 @@
   };
 
   // Draw the population into a 2D canvas context (coords == world coords).
-  Simulation.prototype.render = function (ctx) {
+  // `nowMs` is the real render-clock timestamp, used to animate the infection
+  // rings independently of simulation speed.
+  Simulation.prototype.render = function (ctx, nowMs) {
     var w = this.width, h = this.height;
     var radius = this.params.infectionRadius;
     ctx.clearRect(0, 0, w, h);
@@ -244,31 +245,36 @@
     var agents = this.agents;
     var i, a, col;
 
-    // Pass 1: faint infection-radius rings for everyone (infected pulse louder).
+    // Pass 1: infection-radius ring — ONLY for infected people. Each infected
+    // dot emits a concentric ring that grows from the dot out to the full
+    // infection radius, then repeats. The animation clock starts the moment the
+    // person becomes infected (stamped on first infected frame), so rings across
+    // the population are naturally staggered by when each person was infected.
     for (i = 0; i < agents.length; i++) {
       a = agents[i];
-      col = a.state === S ? COLORS.S : a.state === I ? COLORS.I : COLORS.R;
-      var alpha, ringR;
-      if (a.state === I) {
-        // Animated pulse ring for infected people.
-        var t = a.pulse;
-        ringR = radius * (0.85 + 0.15 * t);
-        alpha = 0.28 * (1 - t) + 0.06;
+      if (a.state !== I) { continue; }
+      if (a.ringStartMs == null) { a.ringStartMs = nowMs; }
+
+      // Faint steady boundary at the full radius so the extent stays visible.
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = hexA(COLORS.I, 0.12);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Two expanding ripples offset by half a cycle for a continuous pulse.
+      // Use a bright, saturated red so the ring pops against the dark canvas.
+      var base = (nowMs - a.ringStartMs) / RIPPLE_MS;
+      for (var p = 0; p < 2; p++) {
+        var phase = (base + p * 0.5) % 1;
+        if (phase < 0) { phase += 1; }
+        var ringR = radius * phase;          // grows from center to full radius
+        var alpha = 0.95 * (1 - phase);      // starts bright, fades to the edge
+        if (ringR < 0.5 || alpha <= 0.01) { continue; }
         ctx.beginPath();
         ctx.arc(a.x, a.y, ringR, 0, Math.PI * 2);
-        ctx.strokeStyle = hexA(col, alpha);
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        // filled halo
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = hexA(col, 0.05);
-        ctx.fill();
-      } else {
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = hexA(col, 0.10);
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,54,54,' + alpha + ')';
+        ctx.lineWidth = 8;
         ctx.stroke();
       }
     }

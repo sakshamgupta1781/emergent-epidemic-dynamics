@@ -52,6 +52,7 @@
     });
 
     wireGlobalControls();
+    buildGlobalParams();
     resizeCanvases();
     resetAll();
     updateDiff();
@@ -99,17 +100,52 @@
     });
   }
 
+  // Build the global (shared) simulation controls into the top bar from the
+  // schema. Changing one applies to BOTH arms and restarts them comparably.
+  function buildGlobalParams() {
+    var container = document.getElementById('globalParams');
+    container.innerHTML = '';
+    App.globalParamDefs().forEach(function (def) {
+      var label = document.createElement('label');
+      label.className = 'ctl';
+      if (def.help) { label.title = def.help; }
+
+      var span = document.createElement('span');
+      span.className = 'ctl-label';
+      var val = document.createElement('b');
+      val.textContent = App.UI.fmt(def, arms.test.params[def.key]);
+      span.appendChild(document.createTextNode(def.label + ' '));
+      span.appendChild(val);
+
+      var input = document.createElement('input');
+      input.type = 'range';
+      input.min = def.min; input.max = def.max; input.step = def.step;
+      input.value = arms.test.params[def.key];
+
+      input.addEventListener('input', function () {
+        var v = parseFloat(input.value);
+        val.textContent = App.UI.fmt(def, v);
+        arms.control.params[def.key] = v;
+        arms.test.params[def.key] = v;
+        resizeCanvases();
+        resetAll();
+      });
+
+      label.appendChild(span);
+      label.appendChild(input);
+      container.appendChild(label);
+    });
+  }
+
   // --------------------------------------------------- param change routing
   function onParamChange(name, key) {
     var a = arms[name];
-    if (key === 'population' || key === 'initialInfected') {
-      // Structural change → rebuild both arms so they restart comparably.
-      resetAll();
-    } else if (key === 'socialDistancingPct' || key === 'quarantineOnInfectionPct') {
+    if (key === 'socialDistancingPct' || key === 'quarantineOnInfectionPct') {
       a.sim.refreshBehavior();
     }
     // Disease params (radius, contact, infectious duration) are read live each
-    // step, so no extra work needed.
+    // step, so no extra work needed. Structural params (population, initially
+    // infected) are global and handled in buildGlobalParams().
     updateDiff();
   }
 
@@ -155,10 +191,29 @@
       resetAll();
     });
 
+    var balance = document.getElementById('balanceArms');
+    balance.addEventListener('click', balanceArms);
+    balance.disabled = viewMode === 'single';
+
     var single = document.getElementById('viewSingle');
     var compare = document.getElementById('viewCompare');
     single.addEventListener('click', function () { setView('single', single, compare); });
     compare.addEventListener('click', function () { setView('compare', single, compare); });
+  }
+
+  // Copy the Control arm's per-arm parameters onto the Test arm so both arms are
+  // identical, then restart both from the same state. Global params (population,
+  // initially infected) are already shared, so only per-arm params are copied.
+  function balanceArms() {
+    App.PARAMS.forEach(function (def) {
+      if (def.scope === 'global') { return; }
+      arms.test.params[def.key] = arms.control.params[def.key];
+    });
+    arms.test.panel.refresh();
+    arms.test.sim.refreshBehavior();
+    resizeCanvases();
+    resetAll();
+    updateDiff();
   }
 
   function setView(mode, singleBtn, compareBtn) {
@@ -167,6 +222,7 @@
     singleBtn.classList.toggle('active', mode === 'single');
     compareBtn.classList.toggle('active', mode === 'compare');
     document.getElementById('arms').classList.toggle('single-view', mode === 'single');
+    document.getElementById('balanceArms').disabled = mode === 'single';
 
     // Let layout settle, then measure + restart both arms from t=0 together.
     requestAnimationFrame(function () {
@@ -189,7 +245,7 @@
     activeArms().forEach(function (name) {
       var a = arms[name];
       if (running) { a.sim.step(simDt, dotSpeed); }
-      a.sim.render(a.ctx);
+      a.sim.render(a.ctx, ts);
       a.chart.sync(a.sim.history, ts, !running, a.sim.peakInfected);
       updateReadout(a);
     });

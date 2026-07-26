@@ -65,6 +65,13 @@ body {
   flex-wrap: wrap;
 }
 
+.global-params {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
 .ctl {
   display: flex;
   flex-direction: column;
@@ -102,6 +109,8 @@ input[type="range"] {
   transition: background 0.15s, border-color 0.15s;
 }
 .btn:hover { background: #232c3c; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled:hover { background: var(--panel-2); }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);

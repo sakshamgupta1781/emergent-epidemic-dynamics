@@ -28,7 +28,9 @@
     var groups = App.paramsByGroup();
 
     groups.forEach(function (g) {
-      if (!g.params.length) { return; }
+      // Global-scoped params live in the top bar, not the per-arm panels.
+      var armParams = g.params.filter(function (p) { return p.scope !== 'global'; });
+      if (!armParams.length) { return; }
       var groupEl = document.createElement('div');
       groupEl.className = 'param-group';
 
@@ -37,7 +39,7 @@
       title.textContent = g.group;
       groupEl.appendChild(title);
 
-      g.params.forEach(function (def) {
+      armParams.forEach(function (def) {
         var row = document.createElement('div');
         row.className = 'param-row';
 

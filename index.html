@@ -28,10 +28,16 @@
         <input id="timeMult" type="range" min="0.25" max="8" step="0.25" value="1" />
       </label>
 
+      <!-- Global (shared) simulation params: population, initially infected -->
+      <div id="globalParams" class="global-params"></div>
+
       <label class="ctl ctl-check">
         <input id="sharedSeed" type="checkbox" checked />
         <span>Shared seed</span>
       </label>
+
+      <button id="balanceArms" class="btn" type="button"
+              title="Copy the Control arm's parameters onto the Test arm and restart both from an identical state">⇄ Balance arms</button>
 
       <div class="view-toggle" role="group" aria-label="View mode">
         <button id="viewSingle" class="btn toggle active" type="button">Single</button>

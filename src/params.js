@@ -62,16 +62,16 @@
       help: 'Percentage of newly-infected people who immediately stop moving (quarantine), reducing onward spread.'
     },
 
-    // ---- Simulation & environment -------------------------------------------
+    // ---- Simulation & environment (GLOBAL — shared by both arms) -------------
     {
       key: 'population', label: 'Population', group: 'Simulation & environment',
-      min: 20, max: 500, step: 10, default: 200,
-      help: 'Total number of people (dots) in the simulation.'
+      min: 20, max: 500, step: 10, default: 200, scope: 'global',
+      help: 'Total number of people (dots) in the simulation. Shared by both arms.'
     },
     {
       key: 'initialInfected', label: 'Initially infected', group: 'Simulation & environment',
-      min: 1, max: 50, step: 1, default: 3,
-      help: 'How many people start out infected at time zero.'
+      min: 1, max: 50, step: 1, default: 3, scope: 'global',
+      help: 'How many people start out infected at time zero. Shared by both arms.'
     }
   ];
 
@@ -96,8 +96,15 @@
     return GROUPS.map(function (g) { return { group: g, params: map[g] }; });
   }
 
+  // Params flagged scope:'global' are controlled once in the top bar and shared
+  // by both arms (e.g. population, initially infected).
+  function globalParamDefs() {
+    return PARAMS.filter(function (p) { return p.scope === 'global'; });
+  }
+
   App.PARAMS = PARAMS;
   App.PARAM_GROUPS = GROUPS;
   App.paramDefaults = defaults;
   App.paramsByGroup = byGroup;
+  App.globalParamDefs = globalParamDefs;
 })(window.App = window.App || {});

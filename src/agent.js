@@ -27,7 +27,8 @@
     this.exposure = 0;        // cumulative sim-seconds within an infected radius
     this.isDistancer = false; // practices social distancing
     this.isQuarantined = false; // stops moving once infected (public policy)
-    this.pulse = 0;           // 0..1 animation phase for the infected ring
+    this.ringStartMs = null;  // render-clock timestamp when the infection ring
+                              // animation begins (set on first infected frame)
   }
 
   Agent.S = S;
