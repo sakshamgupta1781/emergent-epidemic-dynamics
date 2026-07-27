@@ -69,7 +69,10 @@
       if (ti < tasks.length) {
         setTimeout(tick, 0); // yield to the browser between runs
       } else {
-        onDone(summarize(acc));
+        // Pass the summary (for the tables) AND the raw per-iteration accumulator
+        // (every run's control/test peak & removed, per mode) so the optional LLM
+        // analysis can send all data points, not just the aggregates.
+        onDone(summarize(acc), acc);
       }
     }
     setTimeout(tick, 0);

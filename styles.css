@@ -367,3 +367,84 @@ input[type="range"] {
 @media (max-width: 1100px) {
   .row-label { min-width: auto; }
 }
+
+/* --------------------------- AI analysis --------------------------------- */
+.btn-ai {
+  background: #6f5bd6; border-color: #6f5bd6; color: #f4f2ff; font-weight: 600;
+}
+.btn-ai:hover { background: #7e6be0; }
+
+/* "AI analysis" settings disclosure in the top bar. */
+.ai-settings { font-size: 12px; }
+.ai-settings > summary {
+  cursor: pointer; color: var(--muted); list-style: none;
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel-2); user-select: none;
+}
+.ai-settings > summary::-webkit-details-marker { display: none; }
+.ai-settings > summary:hover { color: var(--text); }
+.ai-settings[open] > summary { color: var(--text); border-color: var(--accent); }
+.ai-settings-body {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-top: 8px; padding: 10px 12px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+}
+.ai-settings-body input[type="password"] {
+  width: 220px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px;
+}
+.ai-hint { color: var(--muted); font-size: 11px; max-width: 320px; }
+.ai-hint.warn { color: var(--diff); }
+
+/* ------------------------------ Modal ------------------------------------ */
+.modal { position: fixed; inset: 0; z-index: 100; display: flex;
+  align-items: center; justify-content: center; }
+.modal[hidden] { display: none; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(4, 7, 12, 0.66); }
+.modal-card {
+  position: relative; z-index: 1;
+  width: min(680px, 92vw); max-height: 82vh; display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+}
+.modal-head h2 { margin: 0; font-size: 16px; }
+.modal-close {
+  background: none; border: none; color: var(--muted); font-size: 24px;
+  line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 16px 18px; overflow-y: auto; }
+
+.spinner { color: var(--muted); display: flex; align-items: center; gap: 10px; font-size: 13px; }
+/* `.spinner { display:flex }` would otherwise override the `hidden` attribute. */
+.spinner[hidden] { display: none; }
+.spin {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  display: inline-block; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.analysis-error {
+  color: var(--i); background: rgba(231, 76, 60, 0.10);
+  border: 1px solid rgba(231, 76, 60, 0.35); border-radius: 8px; padding: 10px 12px;
+}
+.analysis-text { font-size: 13.5px; line-height: 1.55; }
+.analysis-text p { margin: 0 0 10px; }
+.analysis-text ul { margin: 0 0 10px; padding-left: 20px; }
+.analysis-text li { margin-bottom: 5px; }
+.analysis-text strong { color: var(--text); }
+
+/* Key-entry dialog (a smaller modal). */
+.modal-card-sm { width: min(440px, 92vw); }
+.key-modal-desc { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 0 0 12px; }
+#keyModalInput {
+  width: 100%; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; font-size: 13px;
+}
+#keyModalError { margin-top: 10px; }
+.key-modal-actions { display: flex; justify-content: flex-end; margin-top: 14px; }

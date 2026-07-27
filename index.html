@@ -11,7 +11,7 @@
   <header class="global-bar">
     <div class="brand">
       <h1>Epidemic Lab</h1>
-      <span class="subtitle">Visualize viral spread &amp; run A/B experiments on the SIR curve</span>
+      <span class="subtitle">Visualize the emergent dynamics of viral spread — and how containment behaviors and actions shape it</span>
     </div>
 
     <div class="bar-rows">
@@ -40,16 +40,11 @@
 
         <!-- Global (shared) params: population, initially infected, max household size -->
         <div id="globalParams" class="global-params"></div>
-
-        <label class="ctl ctl-check">
-          <input id="sharedSeed" type="checkbox" checked />
-          <span>Shared seed</span>
-        </label>
       </div>
 
       <!-- Row 2: experiment mode + run controls -->
       <div class="bar-row">
-        <span class="row-label">Experiment</span>
+        <span class="row-label">Experiment mode</span>
 
         <div class="view-toggle" role="group" aria-label="Experiment mode">
           <button id="viewSingle" class="btn toggle active" type="button">Single</button>
@@ -60,14 +55,27 @@
         <div class="run-controls">
           <button id="playPause" class="btn btn-play" type="button">▶ Play</button>
           <button id="reset" class="btn btn-reset" type="button">⟲ Reset</button>
+          <button id="analyzeBtn" class="btn btn-ai" type="button">✨ Analyze</button>
         </div>
-      </div>
-    </div>
 
-    <div class="legend">
-      <span class="legend-item"><i class="dot s"></i>Susceptible</span>
-      <span class="legend-item"><i class="dot i"></i>Infected</span>
-      <span class="legend-item"><i class="dot r"></i>Removed</span>
+        <!-- Optional: bring your own Anthropic key for AI analysis of results -->
+        <details id="aiSettings" class="ai-settings">
+          <summary>AI analysis</summary>
+          <div class="ai-settings-body">
+            <label class="ctl ctl-inline">
+              <span class="ctl-label">Anthropic API key</span>
+              <input id="apiKey" type="password" placeholder="sk-ant-…"
+                     autocomplete="off" spellcheck="false" />
+            </label>
+            <label class="ctl ctl-inline">
+              <span class="ctl-label">Model</span>
+              <select id="analyzeModel" class="select"></select>
+            </label>
+            <button id="clearKey" class="btn" type="button">Clear key</button>
+            <span id="aiHint" class="ai-hint">Optional. Your key is stored locally in this browser and sent only to Anthropic.</span>
+          </div>
+        </details>
+      </div>
     </div>
   </header>
 
@@ -146,6 +154,47 @@
     <div id="batchResults" class="batch-results"></div>
   </section>
 
+  <!-- ===================== API-key entry dialog ========================== -->
+  <div id="keyModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card modal-card-sm" role="dialog" aria-modal="true" aria-labelledby="keyTitle">
+      <div class="modal-head">
+        <h2 id="keyTitle">Add your Anthropic API key</h2>
+        <button id="keyClose" class="modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="key-modal-desc">
+          Analysis uses your own Anthropic key. It's stored locally in this browser and sent
+          only to Anthropic. You can create a key at console.anthropic.com.
+        </p>
+        <input id="keyModalInput" type="password" placeholder="sk-ant-…"
+               autocomplete="off" spellcheck="false" />
+        <div id="keyModalError" class="analysis-error" hidden></div>
+        <div class="key-modal-actions">
+          <button id="keySave" class="btn btn-ai" type="button">Save &amp; analyze</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== AI analysis modal (optional) =================== -->
+  <div id="analysisModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="analysisTitle">
+      <div class="modal-head">
+        <h2 id="analysisTitle">Analysis</h2>
+        <button id="analysisClose" class="modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="modal-body">
+        <div id="analysisSpinner" class="spinner" hidden>
+          <span class="spin"></span> Analyzing results…
+        </div>
+        <div id="analysisError" class="analysis-error" hidden></div>
+        <div id="analysisText" class="analysis-text"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Vendored Chart.js (works fully offline). CDN alternative:
        https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js -->
   <script src="lib/chart.umd.min.js"></script>
@@ -159,6 +208,7 @@
   <script src="src/ui.js"></script>
   <script src="src/stats.js"></script>
   <script src="src/batch.js"></script>
+  <script src="src/llm.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>

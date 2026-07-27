@@ -17,8 +17,21 @@
   var timeMult = 1;
   var lastTs = 0;
 
+  // Snapshot of the most recent batch run (summary + raw per-iteration data +
+  // the exact params used), for the optional LLM analysis. Null until a run.
+  var lastBatch = null;
+
+  var DEFAULT_AI_HINT =
+    'Optional. Your key is stored locally in this browser and sent only to Anthropic.';
+
   // Per-arm bundles, keyed by 'control' / 'test'.
   var arms = {};
+
+  function cloneParams(p) {
+    var o = {};
+    for (var k in p) { if (p.hasOwnProperty(k)) { o[k] = p[k]; } }
+    return o;
+  }
 
   // ------------------------------------------------------------------ setup
   function boot() {
@@ -57,6 +70,7 @@
     resizeCanvases();
     resetAll();
     updateDiff();
+    updateAnalyzeEnabled();
 
     window.addEventListener('resize', debounce(function () {
       resizeCanvases();
@@ -229,6 +243,7 @@
       playBtn.textContent = running ? '⏸ Pause' : '▶ Play';
       playBtn.classList.toggle('btn-play', !running);  // green when it will start
       playBtn.classList.toggle('btn-pause', running);  // gray while running
+      updateAnalyzeEnabled();  // analysis needs a paused, fixed snapshot
     });
 
     document.getElementById('reset').addEventListener('click', function () {
@@ -248,11 +263,6 @@
     tm.addEventListener('input', function () {
       timeMult = parseFloat(tm.value);
       tmVal.textContent = timeMult.toFixed(2) + '×';
-    });
-
-    document.getElementById('sharedSeed').addEventListener('change', function () {
-      sharedSeed = this.checked;
-      resetAll();
     });
 
     var popMode = document.getElementById('populationMode');
@@ -276,6 +286,175 @@
     document.getElementById('viewBatch').addEventListener('click', function () { setView('batch'); });
 
     wireBatchControls();
+    wireAnalysis();
+  }
+
+  // -------------------------------------------------- LLM analysis (optional)
+  function wireAnalysis() {
+    // Populate the model picker from App.LLM and reflect the stored choice.
+    var sel = document.getElementById('analyzeModel');
+    App.LLM.MODELS.forEach(function (m) {
+      var o = document.createElement('option');
+      o.value = m.id; o.textContent = m.label;
+      sel.appendChild(o);
+    });
+    sel.value = App.LLM.getModel();
+    sel.addEventListener('change', function () { App.LLM.setModel(sel.value); });
+
+    var keyInput = document.getElementById('apiKey');
+    var hint = document.getElementById('aiHint');
+    keyInput.value = App.LLM.getKey();
+    keyInput.addEventListener('input', function () {
+      App.LLM.setKey(keyInput.value.trim());
+      hint.textContent = DEFAULT_AI_HINT;
+      hint.classList.remove('warn');
+    });
+
+    document.getElementById('clearKey').addEventListener('click', function () {
+      App.LLM.clearKey();
+      keyInput.value = '';
+      keyInput.focus();
+    });
+
+    document.getElementById('analyzeBtn').addEventListener('click', runAnalysis);
+    document.getElementById('analysisClose').addEventListener('click', closeModal);
+    document.querySelector('#analysisModal .modal-backdrop')
+      .addEventListener('click', closeModal);
+
+    // Key-entry dialog.
+    document.getElementById('keySave').addEventListener('click', saveKeyFromModal);
+    document.getElementById('keyClose').addEventListener('click', closeKeyModal);
+    document.querySelector('#keyModal .modal-backdrop')
+      .addEventListener('click', closeKeyModal);
+    document.getElementById('keyModalInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { saveKeyFromModal(); }
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') { return; }
+      if (!document.getElementById('keyModal').hidden) { closeKeyModal(); }
+      else if (!document.getElementById('analysisModal').hidden) { closeModal(); }
+    });
+  }
+
+  // Analysis needs a fixed reference point: enable Analyze only when the live
+  // simulation is paused (single/compare). Batch results are already static.
+  function updateAnalyzeEnabled() {
+    var btn = document.getElementById('analyzeBtn');
+    var enabled = (viewMode === 'batch') ? true : !running;
+    btn.disabled = !enabled;
+    btn.title = enabled ? '' : 'Pause the simulation to analyze a fixed snapshot.';
+  }
+
+  // Key-entry dialog: shown only when Analyze is clicked without a stored key.
+  var pendingAnalysis = false; // run the analysis once a key is saved
+
+  function openKeyModal() {
+    var m = document.getElementById('keyModal');
+    document.getElementById('keyModalError').hidden = true;
+    var input = document.getElementById('keyModalInput');
+    input.value = App.LLM.getKey();
+    m.hidden = false;
+    input.focus();
+  }
+  function closeKeyModal() {
+    document.getElementById('keyModal').hidden = true;
+    pendingAnalysis = false;
+  }
+  function saveKeyFromModal() {
+    var input = document.getElementById('keyModalInput');
+    var key = input.value.trim();
+    var err = document.getElementById('keyModalError');
+    if (!key) {
+      err.hidden = false;
+      err.textContent = 'Please enter your Anthropic API key.';
+      input.focus();
+      return;
+    }
+    App.LLM.setKey(key);
+    // Keep the inline settings field in sync so Clear key still works.
+    document.getElementById('apiKey').value = key;
+    document.getElementById('keyModal').hidden = true;
+    if (pendingAnalysis) { pendingAnalysis = false; runAnalysis(); }
+  }
+
+  function runAnalysis() {
+    if (document.getElementById('analyzeBtn').disabled) { return; }
+    if (!App.LLM.hasKey()) { pendingAnalysis = true; openKeyModal(); return; }
+
+    var prompt, title;
+    if (viewMode === 'single') {
+      prompt = App.LLM.buildSingle(arms.test);
+      title = 'Single-run analysis';
+    } else if (viewMode === 'compare') {
+      prompt = App.LLM.buildCompare(arms.control, arms.test);
+      title = 'Control vs Treatment analysis';
+    } else { // batch
+      if (!lastBatch) {
+        openModal('Batch analysis');
+        showError('Run the experiment first, then click Analyze.');
+        return;
+      }
+      prompt = App.LLM.buildBatch(lastBatch);
+      title = 'Batch experiment analysis';
+    }
+
+    openModal(title);
+    showSpinner();
+    App.LLM.analyze(prompt).then(function (text) {
+      showResult(text);
+    }, function (err) {
+      showError((err && err.message) ? err.message : 'Something went wrong.');
+    });
+  }
+
+  // ---- analysis modal ---------------------------------------------------
+  function openModal(title) {
+    document.getElementById('analysisTitle').textContent = title;
+    document.getElementById('analysisModal').hidden = false;
+  }
+  function closeModal() {
+    document.getElementById('analysisModal').hidden = true;
+  }
+  function showSpinner() {
+    document.getElementById('analysisSpinner').hidden = false;
+    document.getElementById('analysisError').hidden = true;
+    document.getElementById('analysisText').innerHTML = '';
+  }
+  function showError(msg) {
+    document.getElementById('analysisSpinner').hidden = true;
+    var e = document.getElementById('analysisError');
+    e.hidden = false; e.textContent = msg;
+    document.getElementById('analysisText').innerHTML = '';
+  }
+  function showResult(text) {
+    document.getElementById('analysisSpinner').hidden = true;
+    document.getElementById('analysisError').hidden = true;
+    document.getElementById('analysisText').innerHTML = renderMarkish(text);
+  }
+
+  // Minimal, safe formatter for Claude's lightly-marked-up reply: HTML-escape,
+  // then honor **bold**, "- " bullets, blank lines, and paragraphs.
+  function renderMarkish(text) {
+    var esc = String(text)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    var lines = esc.split('\n');
+    var html = '';
+    var inList = false;
+    lines.forEach(function (ln) {
+      var m = /^\s*[-*•]\s+(.*)$/.exec(ln);
+      if (m) {
+        if (!inList) { html += '<ul>'; inList = true; }
+        html += '<li>' + m[1] + '</li>';
+      } else {
+        if (inList) { html += '</ul>'; inList = false; }
+        if (ln.trim() === '') { html += ''; }
+        else { html += '<p>' + ln + '</p>'; }
+      }
+    });
+    if (inList) { html += '</ul>'; }
+    return html;
   }
 
   // Run the headless batch experiment and render the result tables.
@@ -285,12 +464,20 @@
     btn.addEventListener('click', function () {
       var iters = parseInt(document.getElementById('batchIterations').value, 10) || 20;
       btn.disabled = true;
+      lastBatch = null; // previous results are stale once a new run starts
       prog.textContent = 'Running… 0/' + (iters * App.Batch.MODES.length);
       App.Batch.runBatch(
         arms.control.params, arms.test.params, iters,
         function (done, total) { prog.textContent = 'Running… ' + done + '/' + total; },
-        function (results) {
+        function (results, raw) {
           App.Batch.renderResults(document.getElementById('batchResults'), results);
+          // Snapshot the summary, every run's raw data points, and the exact
+          // params used, so "Analyze" can send Claude the full picture.
+          lastBatch = {
+            summary: results, raw: raw, iterations: iters,
+            control: cloneParams(arms.control.params),
+            test: cloneParams(arms.test.params)
+          };
           prog.textContent = 'Done — ' + iters + ' iterations × ' + App.Batch.MODES.length + ' modes.';
           btn.disabled = false;
         }
@@ -333,6 +520,7 @@
 
     // Visible params differ (batch shows common-only) → rebuild both panels.
     rebuildPanels();
+    updateAnalyzeEnabled();
 
     // Let layout settle, then measure + restart the live arms (none in batch).
     requestAnimationFrame(function () {
