@@ -35,8 +35,7 @@
 
       var chart = new App.SIRChart(chartCanvas);
 
-      var panelCtrl = App.UI.buildPanel(panelEl, params, makePanelCb(name),
-        { householdMode: populationMode === 'households' });
+      var panelCtrl = App.UI.buildPanel(panelEl, params, makePanelCb(name), panelOpts());
 
       arms[name] = {
         name: name,
@@ -165,13 +164,20 @@
     return function (key) { onParamChange(name, key); };
   }
 
+  // Visibility flags for conditional per-arm params, from the current mode.
+  function panelOpts() {
+    return {
+      householdMode: populationMode === 'households',
+      communitiesMode: populationMode === 'communities'
+    };
+  }
+
   // Rebuild both arms' panels (e.g. when population mode toggles conditional
   // params on/off), preserving current values.
   function rebuildPanels() {
     ['control', 'test'].forEach(function (name) {
       var a = arms[name];
-      a.panel = App.UI.buildPanel(a.panelEl, a.params, makePanelCb(name),
-        { householdMode: populationMode === 'households' });
+      a.panel = App.UI.buildPanel(a.panelEl, a.params, makePanelCb(name), panelOpts());
     });
     updateDiff();
   }

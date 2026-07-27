@@ -19,6 +19,7 @@
  *             params scale automatically; see app.js/simulation.js)
  *   scope     'global' → controlled once in the top bar, shared by both arms
  *   requiresHouseholds  true → only shown when population mode is "Households"
+ *   requiresCommunities true → only shown when population mode is "Communities"
  *   requiresQuarantine  true → only shown when that arm's quarantine is enabled
  *   type      'toggle' → boolean checkbox instead of a slider (min/max/step omitted)
  *   help      optional tooltip text
@@ -73,6 +74,11 @@
       min: 0, max: 10, step: 0.5, default: 2, unit: 's', temporal: true, requiresQuarantine: true,
       help: 'How long after getting infected a person waits before moving into the quarantine zone. Scaled by the global time multiplier. Only applies when quarantine is enabled.'
     },
+    {
+      key: 'tripDuration', label: 'Trip duration', group: 'Personal control',
+      min: 0.5, max: 20, step: 0.5, default: 3, unit: 's', temporal: true, requiresCommunities: true,
+      help: 'How long a traveler stays in the community they visit before returning home. Scaled by the global time multiplier. Only applies in Communities mode.'
+    },
 
     // ---- Public policy ------------------------------------------------------
     {
@@ -84,6 +90,11 @@
       key: 'quarantineTriggerPct', label: 'Activation threshold', group: 'Public policy',
       min: 0, max: 50, step: 1, default: 5, unit: '%', requiresQuarantine: true,
       help: 'Government-mandated quarantine only kicks in once this % of the population has ever been infected (infected + removed).'
+    },
+    {
+      key: 'interCommunityTravelPct', label: 'Inter-community travel', group: 'Public policy',
+      min: 0, max: 100, step: 1, default: 8, unit: '%', requiresCommunities: true,
+      help: 'Chance per second that a person travels from their community to a random other community (they mix there for the trip duration, then return home). Only applies in Communities mode.'
     },
 
     // ---- Simulation & environment (GLOBAL — shared by both arms) -------------

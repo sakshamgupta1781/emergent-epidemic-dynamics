@@ -35,6 +35,15 @@
     this.homeAngle = 0;       // base angular slot around the household anchor
     this.homeBaseR = 0;       // base orbit distance from the anchor
     this.breathePhase = 0;    // per-member phase for the in/out "breathing"
+
+    // Communities mode.
+    this.communityId = -1;    // home community (0..7), -1 = none
+    this.awayCommunity = -1;  // destination community while away (-1 when home)
+    this.travelState = 'home';// 'home' | 'traveling' | 'away'
+    this.tripTimer = 0;       // sim-seconds remaining in the visited community
+    this.travelTX = 0;        // in-transit destination point
+    this.travelTY = 0;
+    this.travelToHome = false;// is the current transit a return trip?
   }
 
   Agent.S = S;

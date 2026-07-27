@@ -31,6 +31,7 @@
   var HH_BREATHE_AMP = 0.28;   // fraction the orbit distance breathes in/out
   var HH_BREATHE_FREQ = 1.2;   // radians/sim-second of the breathing wave
   var SEP_ITERS = 4;           // relaxation passes for hard household separation
+  var TRAVEL_SPEED = 4;        // in-transit dots hurry across the map between cells
 
   var COLORS = {
     S: '#2ecc71', // green  — susceptible
@@ -85,6 +86,8 @@
     // a fixed order so both arms get identical households under a shared seed).
     if (p.populationMode === 'households') {
       this._buildHouseholds(rng);
+    } else if (p.populationMode === 'communities') {
+      this._buildCommunities(rng);
     }
 
     this._applyBehaviorFlags();
@@ -142,6 +145,24 @@
     }
   };
 
+  // Assign each person to one of the 8 communities in contiguous blocks (so the
+  // seeded initial infections all start in community 0), and place them inside
+  // their home cell. Everyone starts home.
+  Simulation.prototype._buildCommunities = function (rng) {
+    var agents = this.agents;
+    var n = agents.length;
+    for (var i = 0; i < n; i++) {
+      var a = agents[i];
+      a.communityId = Math.min(7, Math.floor((i * 8) / n));
+      a.awayCommunity = -1;
+      a.travelState = 'home';
+      a.tripTimer = 0;
+      var cell = this.communityCellRect(a.communityId);
+      a.x = cell.x + rng.range(0, cell.w);
+      a.y = cell.y + rng.range(0, cell.h);
+    }
+  };
+
   // Recompute distancer / quarantine flags from current params + stored rolls.
   // Called on reset and whenever those params change live.
   Simulation.prototype._applyBehaviorFlags = function () {
@@ -176,11 +197,32 @@
     this._applyBehaviorFlags();
   };
 
-  // The quarantine zone: a boxed-off corner (bottom-right) of the current world.
+  // The map is conceptually a 3x3 grid. These 8 cells hold communities; the
+  // bottom-right cell [2,2] is reserved for the quarantine ward.
+  var COMMUNITY_CELLS = [
+    [0, 0], [1, 0], [2, 0],
+    [0, 1], [1, 1], [2, 1],
+    [0, 2], [1, 2]
+  ];
+  var GRID_GAP = 5; // inset so cell borders are visible
+
+  // Rect for grid cell (col,row), inset by the gap.
+  Simulation.prototype.cellRect = function (col, row) {
+    var cw = this.width / 3, ch = this.height / 3;
+    return {
+      x: col * cw + GRID_GAP, y: row * ch + GRID_GAP,
+      w: cw - 2 * GRID_GAP, h: ch - 2 * GRID_GAP
+    };
+  };
+
+  Simulation.prototype.communityCellRect = function (idx) {
+    var c = COMMUNITY_CELLS[idx];
+    return this.cellRect(c[0], c[1]);
+  };
+
+  // The quarantine ward occupies the reserved bottom-right cell [2,2].
   Simulation.prototype.quarantineZone = function () {
-    var m = 6;
-    var qw = this.width * 0.32, qh = this.height * 0.32;
-    return { x: this.width - qw - m, y: this.height - qh - m, w: qw, h: qh };
+    return this.cellRect(2, 2);
   };
 
   // Advance the simulation by simDt sim-seconds (may substep for stability).
@@ -202,6 +244,15 @@
     var infectiousDur = this.params.infectiousDuration;
     // Hygiene: probability that a sustained contact FAILS to infect (dodged).
     var dodgeProb = (this.params.hygienePct || 0) / 100;
+    // Communities mode confines transmission to within a community cell.
+    var commMode = this.params.populationMode === 'communities';
+    // Current community for transmission: home cell, the visited cell when away,
+    // or -2 while in transit (on the road → mixes with nobody).
+    function curCell(ag) {
+      if (ag.travelState === 'away') { return ag.awayCommunity; }
+      if (ag.travelState === 'traveling') { return -2; }
+      return ag.communityId;
+    }
     var rng = null; // wander uses a cheap deterministic-per-step RNG below
     var i, j, a, b, dx, dy;
 
@@ -282,8 +333,8 @@
       else { ag.y = minY; ag.vy = -Math.abs(ag.vy); }
     }
 
-    // An agent wanders confined to an arbitrary rectangle (the quarantine zone),
-    // with optional distancing steer.
+    // An agent wanders confined to an arbitrary rectangle (used for the
+    // quarantine zone and for community cells), with optional distancing steer.
     function wanderInRect(ag, rx, ry, rw, rh, allowDistance) {
       var angle = Math.atan2(ag.vy, ag.vx) + (rng.next() - 0.5) * WANDER * dt;
       var sx = Math.cos(angle), sy = Math.sin(angle);
@@ -325,7 +376,63 @@
       }
     }
 
-    if (this.households) {
+    if (this.params.populationMode === 'communities') {
+      // ---- Communities mode -----------------------------------------------
+      // Each person is confined to their community cell; with a tunable
+      // probability they take a trip to a random other community, linger for the
+      // trip duration, then return home. Travel is a teleport between cells.
+      var travelRate = (this.params.interCommunityTravelPct || 0) / 100;
+      var tripDur = this.params.tripDuration || 0;
+      for (i = 0; i < n; i++) {
+        a = agents[i];
+        if (a.inQuarantine) { wanderInRect(a, zx, zy, zw, zh, false); continue; }
+
+        // State transitions.
+        if (a.travelState === 'home') {
+          if (travelRate > 0 && rng.next() < travelRate * dt) {
+            var tgt = rng.int(0, 6);            // pick a random OTHER community
+            if (tgt >= a.communityId) { tgt++; } // 0..7 excluding the home cell
+            a.awayCommunity = tgt;
+            a.travelState = 'traveling';
+            a.travelToHome = false;
+            var tc = this.communityCellRect(tgt);
+            a.travelTX = tc.x + rng.range(0, tc.w);
+            a.travelTY = tc.y + rng.range(0, tc.h);
+          }
+        } else if (a.travelState === 'away') {
+          a.tripTimer -= dt;
+          if (a.tripTimer <= 0) {
+            a.travelState = 'traveling';
+            a.travelToHome = true;
+            var hc = this.communityCellRect(a.communityId);
+            a.travelTX = hc.x + rng.range(0, hc.w);
+            a.travelTY = hc.y + rng.range(0, hc.h);
+          }
+        }
+
+        // In transit: move in a straight line toward the destination, crossing
+        // freely (walls don't apply). Arrive → settle into the target cell.
+        if (a.travelState === 'traveling') {
+          var vx = a.travelTX - a.x, vy = a.travelTY - a.y;
+          var d = Math.hypot(vx, vy) || 1;
+          a.vx = vx / d; a.vy = vy / d;
+          var step = a.speedBase * dotSpeed * dt * TRAVEL_SPEED;
+          if (step >= d) {
+            a.x = a.travelTX; a.y = a.travelTY;
+            if (a.travelToHome) { a.travelState = 'home'; a.awayCommunity = -1; }
+            else { a.travelState = 'away'; a.tripTimer = tripDur; }
+          } else {
+            a.x += a.vx * step; a.y += a.vy * step;
+          }
+          continue; // no in-cell wander while on the road
+        }
+
+        // Home or away: wander confined to the current community cell.
+        var cellIdx = a.travelState === 'away' ? a.awayCommunity : a.communityId;
+        var cr = this.communityCellRect(cellIdx);
+        wanderInRect(a, cr.x, cr.y, cr.w, cr.h, true);
+      }
+    } else if (this.households) {
       // ---- Households mode -------------------------------------------------
       // Households stay together and roam as a unit; nobody leaves the group.
       var rc = Math.min(10, radius * 0.4);
@@ -437,10 +544,13 @@
       if (a.state === S) {
         // Is any infected agent within the infection radius right now?
         var inContact = false;
+        var aCell = commMode ? curCell(a) : 0;
         for (j = 0; j < n; j++) {
           b = agents[j];
           // Quarantined (isolated) infected people don't transmit.
           if (b.state !== I || b.inQuarantine) { continue; }
+          // In communities mode, transmission stays within a community cell.
+          if (commMode && curCell(b) !== aCell) { continue; }
           dx = a.x - b.x; dy = a.y - b.y;
           if (dx * dx + dy * dy < r2) { inContact = true; break; }
         }
@@ -462,6 +572,12 @@
         if (a.infectedTimer >= infectiousDur) {
           a.state = R;
           a.inQuarantine = false; // recovered people leave the zone
+          // In communities mode, a recovered person goes back to their own cell.
+          if (a.communityId >= 0) {
+            a.travelState = 'home'; a.awayCommunity = -1;
+            var rhc = this.communityCellRect(a.communityId);
+            a.x = rhc.x + rng.range(0, rhc.w); a.y = rhc.y + rng.range(0, rhc.h);
+          }
         } else {
           maybeEnterQuarantine(a); // move to the zone once delay/threshold met
         }
@@ -507,6 +623,19 @@
 
     var agents = this.agents;
     var i, a, col;
+
+    // Community cells: draw the 8 community squares as a grid behind everything.
+    if (this.params.populationMode === 'communities') {
+      ctx.setLineDash([]);
+      for (i = 0; i < COMMUNITY_CELLS.length; i++) {
+        var cc = this.communityCellRect(i);
+        ctx.fillStyle = 'rgba(255,255,255,0.02)';
+        ctx.fillRect(cc.x, cc.y, cc.w, cc.h);
+        ctx.strokeStyle = 'rgba(160,170,190,0.28)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(cc.x, cc.y, cc.w, cc.h);
+      }
+    }
 
     // Quarantine zone: a boxed-off isolation ward, drawn behind everything.
     if (this.params.quarantineEnabled) {

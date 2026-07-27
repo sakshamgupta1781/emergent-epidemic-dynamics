@@ -36,6 +36,7 @@
       var armParams = g.params.filter(function (p) {
         if (p.scope === 'global') { return false; }
         if (p.requiresHouseholds && !opts.householdMode) { return false; }
+        if (p.requiresCommunities && !opts.communitiesMode) { return false; }
         if (p.requiresQuarantine && !paramsObj.quarantineEnabled) { return false; }
         return true;
       });
