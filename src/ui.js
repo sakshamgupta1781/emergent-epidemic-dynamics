@@ -6,6 +6,32 @@
 (function (App) {
   'use strict';
 
+  // Build an info icon whose hover tooltip explains a control: what it means
+  // (with a real-world analogy) and the effect of increasing/decreasing it.
+  function infoIcon(help) {
+    var span = document.createElement('span');
+    span.className = 'info';
+    span.textContent = 'ⓘ';
+    var tip = document.createElement('div');
+    tip.className = 'tip';
+    function line(cls, boldText, text) {
+      var el = document.createElement('div');
+      el.className = cls;
+      if (boldText) { var b = document.createElement('b'); b.textContent = boldText; el.appendChild(b); }
+      el.appendChild(document.createTextNode(text));
+      tip.appendChild(el);
+    }
+    if (typeof help === 'string') {
+      line('tip-desc', '', help);
+    } else {
+      if (help.desc) { line('tip-desc', '', help.desc); }
+      if (help.up) { line('tip-eff', 'Increase: ', help.up); }
+      if (help.down) { line('tip-eff', 'Decrease: ', help.down); }
+    }
+    span.appendChild(tip);
+    return span;
+  }
+
   // Format a value according to its slider step (decimals) + optional unit.
   function fmt(def, v) {
     if (typeof v === 'boolean' || def.type === 'toggle') { return v ? 'on' : 'off'; }
@@ -60,13 +86,14 @@
         var label = document.createElement('span');
         label.className = 'p-label';
         label.textContent = def.label;
-        if (def.help) { label.title = def.help; }
 
         var delta = document.createElement('span');
         delta.className = 'delta';
 
         var labelWrap = document.createElement('span');
+        labelWrap.className = 'label-wrap';
         labelWrap.appendChild(label);
+        if (def.help) { labelWrap.appendChild(infoIcon(def.help)); }
         labelWrap.appendChild(delta);
         top.appendChild(labelWrap);
 

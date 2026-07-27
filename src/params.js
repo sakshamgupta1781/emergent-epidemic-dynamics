@@ -22,7 +22,9 @@
  *   requiresCommunities true → only shown when population mode is "Communities"
  *   requiresQuarantine  true → only shown when that arm's quarantine is enabled
  *   type      'toggle' → boolean checkbox instead of a slider (min/max/step omitted)
- *   help      optional tooltip text
+ *   help      { desc, up, down } shown in the info-icon tooltip: what it means
+ *             (with a real-world analogy), and the effect of increasing/decreasing
+ *             it. `up`/`down` are omitted for toggles.
  */
 (function (App) {
   'use strict';
@@ -40,78 +42,132 @@
     {
       key: 'infectionRadius', label: 'Infection radius', group: 'Disease parameters',
       min: 5, max: 60, step: 1, default: 20, unit: 'px',
-      help: 'How close a susceptible person must be to an infected person to risk infection. Drawn as the ring around each dot.'
+      help: {
+        desc: 'How close you must be to an infected person to be at risk — a proxy for how communicable the disease is (e.g. a measles-like airborne bug reaches far; a contact-only bug reaches barely).',
+        up: 'More contagious disease — it spreads faster and to more people.',
+        down: 'Less contagious — slower, smaller outbreaks.'
+      }
     },
     {
       key: 'contactDurationToInfect', label: 'Contact time to infect', group: 'Disease parameters',
       min: 0, max: 10, step: 0.1, default: 1, unit: 's', temporal: true,
-      help: 'Continuous time a susceptible person must spend within the infection radius of an infected person before catching the disease (resets if they move apart). Scaled by the global time multiplier.'
+      help: {
+        desc: 'How long continuous close contact must last before the disease passes — reflects how big a "dose" of exposure it takes to catch it. Resets if people move apart.',
+        up: 'Harder to catch — brief passing encounters are safe, so spread slows.',
+        down: 'Catches almost instantly on contact — spread accelerates.'
+      }
     },
     {
       key: 'infectiousDuration', label: 'Infectious duration', group: 'Disease parameters',
       min: 1, max: 60, step: 1, default: 14, unit: 's', temporal: true,
-      help: 'How long a person stays infected (and contagious) before moving to Removed. Scaled by the global time multiplier.'
+      help: {
+        desc: 'How long a person stays contagious before recovering/being removed — the length of the infectious period of the illness.',
+        up: 'Longer contagious window — each person infects more others, so the outbreak grows larger.',
+        down: 'People stop spreading sooner — smaller outbreak.'
+      }
     },
 
     // ---- Personal control ---------------------------------------------------
     {
       key: 'socialDistancingPct', label: 'Social distancing', group: 'Personal control',
       min: 0, max: 100, step: 1, default: 0, unit: '%',
-      help: 'Individuals mode: % of people who keep at least one infection radius from everyone else. Households mode: % of households that keep their whole family away from other households — and whose members also distance while they are out.'
+      help: {
+        desc: 'Share of people who keep their physical distance — staying out of others\' space, avoiding crowds. (In Households mode it\'s the share of households that keep their whole family away from others.)',
+        up: 'More people keeping apart — fewer close contacts, so a flatter, smaller epidemic.',
+        down: 'Normal mixing and crowding — faster, larger epidemic.'
+      }
     },
     {
       key: 'hygienePct', label: 'Hygiene & prevention', group: 'Personal control',
       min: 0, max: 100, step: 1, default: 0, unit: '%',
-      help: 'Good hygiene / preventive practices (handwashing, masks, etc.). The percentage chance that a sustained close contact does NOT lead to infection — higher values reduce transmission and slow the spread.'
+      help: {
+        desc: 'How well people take precautions that stop a close contact from actually transmitting — handwashing, masks, not hugging/kissing, covering coughs. It\'s the chance a would-be transmission is prevented.',
+        up: 'Strong precautions — many close contacts fail to transmit, lowering the peak and slowing spread.',
+        down: 'Poor hygiene — nearly every close contact can infect, so the disease races through.'
+      }
     },
     {
       key: 'quarantineCompliancePct', label: 'Quarantine compliance', group: 'Personal control',
       min: 0, max: 100, step: 1, default: 70, unit: '%', requiresQuarantine: true,
-      help: 'Percentage of infected people who actually self-isolate (move into the quarantine zone) once quarantine is active. Only applies when quarantine is enabled.'
+      help: {
+        desc: 'Of the people who get infected, the share who actually self-isolate (enter the quarantine ward) once quarantine is active — reflects public trust and willingness to comply.',
+        up: 'More infectious people taken out of circulation — the outbreak is contained.',
+        down: 'Infected people keep mixing — quarantine barely helps.'
+      }
     },
     {
       key: 'quarantineDelay', label: 'Quarantine delay', group: 'Personal control',
       min: 0, max: 10, step: 0.5, default: 2, unit: 's', temporal: true, requiresQuarantine: true,
-      help: 'How long after getting infected a person waits before moving into the quarantine zone. Scaled by the global time multiplier. Only applies when quarantine is enabled.'
+      help: {
+        desc: 'How long after getting infected a person isolates — reflects testing speed, symptom onset, and how quickly people react.',
+        up: 'Longer to isolate — more time to spread first, so quarantine is less effective.',
+        down: 'People isolate almost immediately — very effective containment.'
+      }
     },
     {
       key: 'tripDuration', label: 'Trip duration', group: 'Personal control',
       min: 0.5, max: 20, step: 0.5, default: 3, unit: 's', temporal: true, requiresCommunities: true,
-      help: 'How long a traveler stays in the community they visit before returning home. Scaled by the global time multiplier. Only applies in Communities mode.'
+      help: {
+        desc: 'How long a traveller stays in another community before returning home — longer visits mean more mixing while away. (Communities mode only.)',
+        up: 'Longer visits — more exposure in the visited community, more cross-spread.',
+        down: 'Quick trips — less mixing, less cross-community spread.'
+      }
     },
 
     // ---- Public policy ------------------------------------------------------
     {
       key: 'quarantineEnabled', label: 'Enable quarantine', group: 'Public policy',
       type: 'toggle', default: false,
-      help: 'Turn on a quarantine zone: compliant infected people are moved into an isolated corner of the map. Reveals the quarantine knobs.'
+      help: {
+        desc: 'Turns on a government quarantine ward: once triggered, compliant infected people are moved into an isolated corner of the map where they can\'t spread. Reveals the quarantine knobs.'
+      }
     },
     {
       key: 'quarantineTriggerPct', label: 'Activation threshold', group: 'Public policy',
       min: 0, max: 50, step: 1, default: 5, unit: '%', requiresQuarantine: true,
-      help: 'Government-mandated quarantine only kicks in once this % of the population has ever been infected (infected + removed).'
+      help: {
+        desc: 'How widespread the outbreak must get (% of the population ever infected) before government quarantine kicks in — reflects a proactive vs. reactive response.',
+        up: 'Government waits longer to act — the outbreak is much larger before it\'s brought under control.',
+        down: 'Early action — the outbreak is caught and contained sooner.'
+      }
     },
     {
       key: 'interCommunityTravelPct', label: 'Inter-community travel', group: 'Public policy',
       min: 0, max: 100, step: 1, default: 8, unit: '%', requiresCommunities: true,
-      help: 'Chance per second that a person travels from their community to a random other community (they mix there for the trip duration, then return home). Only applies in Communities mode.'
+      help: {
+        desc: 'How often people travel between communities — reflects mobility and whether travel between regions is restricted (lockdowns, border controls). (Communities mode only.)',
+        up: 'Lots of travel — the disease jumps between communities into a widespread outbreak.',
+        down: 'Travel restricted — outbreaks stay local to the community where they start.'
+      }
     },
 
     // ---- Simulation & environment (GLOBAL — shared by both arms) -------------
     {
       key: 'population', label: 'Population', group: 'Simulation & environment',
       min: 20, max: 500, step: 10, default: 300, scope: 'global',
-      help: 'Total number of people (dots) in the simulation. Shared by both arms.'
+      help: {
+        desc: 'Total number of people. In a fixed-size world, more people means a denser, more crowded population.',
+        up: 'Denser crowding — faster, larger outbreaks.',
+        down: 'Sparser population — slower spread.'
+      }
     },
     {
       key: 'initialInfected', label: 'Initially infected', group: 'Simulation & environment',
       min: 1, max: 50, step: 1, default: 11, scope: 'global',
-      help: 'How many people start out infected at time zero (defaults to ~3.5% of the population and re-derives when you change the population; still adjustable). Shared by both arms.'
+      help: {
+        desc: 'How many people are already infected at the start — the size of the initial seeding of the outbreak. Defaults to ~3.5% of the population.',
+        up: 'More seed cases — the epidemic takes off faster and from more places.',
+        down: 'Fewer seed cases — slower start; a small outbreak may fizzle out.'
+      }
     },
     {
       key: 'maxHouseholdSize', label: 'Max household size', group: 'Simulation & environment',
       min: 1, max: 8, step: 1, default: 4, scope: 'global', requiresHouseholds: true,
-      help: 'In Households mode, people are split into groups of a random size between 1 and this value. Shared by both arms.'
+      help: {
+        desc: 'The largest household; people live in groups of a random size up to this, and spread readily to housemates. (Households mode only.)',
+        up: 'Bigger families — more in-home transmission once one member is infected.',
+        down: 'Smaller households — less in-home spread.'
+      }
     }
   ];
 

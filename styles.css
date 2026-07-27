@@ -158,6 +158,7 @@ input[type="range"] {
 /* --------------------------------- Arms ---------------------------------- */
 .arms {
   flex: 1;
+  position: relative; /* anchor for the between-arms link toggle */
   display: grid;
   gap: 16px;
   padding: 16px 20px 24px;
@@ -218,7 +219,7 @@ input[type="range"] {
 .chart-wrap canvas { position: absolute; inset: 0; }
 
 /* ----------------------------- Param panels ------------------------------ */
-.param-panel { overflow-y: auto; padding-right: 4px; }
+.param-panel { overflow: visible; padding-right: 4px; }
 
 .param-group { margin-bottom: 14px; }
 .param-group > .group-title {
@@ -315,3 +316,54 @@ input[type="range"] {
 .batch-table tbody tr:last-child td { border-bottom: none; }
 .sig-yes { color: var(--s); font-weight: 700; }
 .sig-no { color: var(--muted); }
+
+/* ------------------------- Two-row top bar -------------------------------- */
+.bar-rows { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
+.bar-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.row-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--muted); min-width: 118px; font-weight: 600;
+}
+.run-controls { display: flex; gap: 8px; }
+
+/* Colored run buttons. */
+.btn-play { background: var(--s); border-color: var(--s); color: #08130c; font-weight: 700; }
+.btn-play:hover { background: #43d67e; }
+.btn-pause { background: #4b5563; border-color: #4b5563; color: #e6eaf0; }
+.btn-pause:hover { background: #566175; }
+.btn-reset { background: #d98a3d; border-color: #d98a3d; color: #1c1206; font-weight: 600; }
+.btn-reset:hover { background: #e59a4f; }
+
+/* ------------------------ Link (sync) toggle ----------------------------- */
+.arm-link {
+  position: absolute; z-index: 6;
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--muted);
+  font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45); transition: background 0.15s, color 0.15s;
+  /* compare view: centered on the params column, between the two stacked rows */
+  left: 150px; top: 50%; transform: translate(-50%, -50%);
+}
+.arm-link:hover { background: #232c3c; }
+.arm-link.active { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+.arms.single-view .arm-link { display: none; }          /* only one arm */
+.arms.batch-view .arm-link { left: 50%; top: 46px; transform: translate(-50%, 0); }
+
+/* ------------------------ Info icon + tooltip ---------------------------- */
+.label-wrap { display: inline-flex; align-items: center; gap: 5px; }
+.info { color: var(--muted); cursor: help; font-size: 12px; position: relative; }
+.info:hover { color: var(--accent); }
+.tip {
+  display: none; position: absolute; left: -4px; top: 18px; z-index: 30;
+  width: 250px; background: #0b0f16; border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 11px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  font-size: 11.5px; line-height: 1.45; color: var(--text); white-space: normal; cursor: default;
+}
+.info:hover .tip { display: block; }
+.tip-desc { margin-bottom: 6px; }
+.tip-eff { color: var(--muted); }
+.tip-eff b { color: var(--text); }
+
+@media (max-width: 1100px) {
+  .row-label { min-width: auto; }
+}

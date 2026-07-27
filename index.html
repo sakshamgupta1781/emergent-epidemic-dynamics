@@ -14,45 +14,53 @@
       <span class="subtitle">Visualize viral spread &amp; run A/B experiments on the SIR curve</span>
     </div>
 
-    <div class="global-controls">
-      <button id="playPause" class="btn btn-primary" type="button">▶ Play</button>
-      <button id="reset" class="btn" type="button">⟲ Reset</button>
+    <div class="bar-rows">
+      <!-- Row 1: global parameters -->
+      <div class="bar-row">
+        <span class="row-label">Global parameters</span>
 
-      <label class="ctl">
-        <span class="ctl-label">Dot speed <b id="dotSpeedVal">1.0×</b></span>
-        <input id="dotSpeed" type="range" min="0" max="3" step="0.1" value="1" />
-      </label>
+        <label class="ctl">
+          <span class="ctl-label">Dot speed <b id="dotSpeedVal">1.0×</b></span>
+          <input id="dotSpeed" type="range" min="0" max="3" step="0.1" value="1" />
+        </label>
 
-      <label class="ctl">
-        <span class="ctl-label">Time multiplier <b id="timeMultVal">1.0×</b></span>
-        <input id="timeMult" type="range" min="0.25" max="8" step="0.25" value="1" />
-      </label>
+        <label class="ctl">
+          <span class="ctl-label">Time multiplier <b id="timeMultVal">1.0×</b></span>
+          <input id="timeMult" type="range" min="0.25" max="8" step="0.25" value="1" />
+        </label>
 
-      <label class="ctl">
-        <span class="ctl-label">Population mode</span>
-        <select id="populationMode" class="select">
-          <option value="individuals">Individuals</option>
-          <option value="households">Households</option>
-          <option value="communities">Communities</option>
-        </select>
-      </label>
+        <label class="ctl">
+          <span class="ctl-label">Population mode</span>
+          <select id="populationMode" class="select">
+            <option value="individuals">Individuals</option>
+            <option value="households">Households</option>
+            <option value="communities">Communities</option>
+          </select>
+        </label>
 
-      <!-- Global (shared) simulation params: population, initially infected,
-           and (in household mode) max household size -->
-      <div id="globalParams" class="global-params"></div>
+        <!-- Global (shared) params: population, initially infected, max household size -->
+        <div id="globalParams" class="global-params"></div>
 
-      <label class="ctl ctl-check">
-        <input id="sharedSeed" type="checkbox" checked />
-        <span>Shared seed</span>
-      </label>
+        <label class="ctl ctl-check">
+          <input id="sharedSeed" type="checkbox" checked />
+          <span>Shared seed</span>
+        </label>
+      </div>
 
-      <button id="balanceArms" class="btn" type="button"
-              title="Copy the Control arm's parameters onto the Test arm and restart both from an identical state">⇄ Balance arms</button>
+      <!-- Row 2: experiment mode + run controls -->
+      <div class="bar-row">
+        <span class="row-label">Experiment</span>
 
-      <div class="view-toggle" role="group" aria-label="View mode">
-        <button id="viewSingle" class="btn toggle active" type="button">Single</button>
-        <button id="viewCompare" class="btn toggle" type="button">Compare</button>
-        <button id="viewBatch" class="btn toggle" type="button">Batch</button>
+        <div class="view-toggle" role="group" aria-label="Experiment mode">
+          <button id="viewSingle" class="btn toggle active" type="button">Single</button>
+          <button id="viewCompare" class="btn toggle" type="button">Compare</button>
+          <button id="viewBatch" class="btn toggle" type="button">Batch</button>
+        </div>
+
+        <div class="run-controls">
+          <button id="playPause" class="btn btn-play" type="button">▶ Play</button>
+          <button id="reset" class="btn btn-reset" type="button">⟲ Reset</button>
+        </div>
       </div>
     </div>
 
@@ -65,6 +73,11 @@
 
   <!-- =============================== Arms =============================== -->
   <main id="arms" class="arms single-view">
+
+    <!-- Sync toggle sitting between the Control and Test arms (compare/batch). -->
+    <button id="armLink" class="arm-link" type="button" aria-pressed="false"
+            title="Link arms: sync Control and Test parameters. Click to unlink and edit each arm on its own.">🔗</button>
+
 
     <!-- Control arm (top row in compare view; hidden in single view) -->
     <section class="arm" id="arm-control" data-arm="control">

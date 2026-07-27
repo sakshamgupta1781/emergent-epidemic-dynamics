@@ -9,9 +9,10 @@
 
   // Global run state.
   var running = false;
-  var viewMode = 'single';           // 'single' | 'compare'
-  var populationMode = 'individuals'; // 'individuals' | 'households'
+  var viewMode = 'single';           // 'single' | 'compare' | 'batch'
+  var populationMode = 'individuals'; // 'individuals' | 'households' | 'communities'
   var sharedSeed = true;
+  var armsLinked = false;            // link toggle: sync Control & Test params
   var dotSpeed = 1;
   var timeMult = 1;
   var lastTs = 0;
@@ -187,8 +188,18 @@
 
   function onParamChange(name, key) {
     var a = arms[name];
-    if (key === 'quarantineEnabled') {
-      // Show/hide the quarantine knobs for this arm, and update behavior live.
+    var isToggle = key === 'quarantineEnabled';
+
+    // When linked, mirror the change to the other arm.
+    if (armsLinked) {
+      var other = arms[name === 'control' ? 'test' : 'control'];
+      other.params[key] = a.params[key];
+      other.sim.refreshBehavior();
+      if (!isToggle) { other.panel.refresh(); }
+    }
+
+    if (isToggle) {
+      // Show/hide the quarantine knobs (both arms) and update behavior live.
       rebuildPanels();
       a.sim.refreshBehavior();
       return; // rebuildPanels already refreshed diff highlighting
@@ -216,7 +227,8 @@
     playBtn.addEventListener('click', function () {
       running = !running;
       playBtn.textContent = running ? '⏸ Pause' : '▶ Play';
-      playBtn.classList.toggle('btn-primary', !running);
+      playBtn.classList.toggle('btn-play', !running);  // green when it will start
+      playBtn.classList.toggle('btn-pause', running);  // gray while running
     });
 
     document.getElementById('reset').addEventListener('click', function () {
@@ -255,9 +267,9 @@
       resetAll();
     });
 
-    var balance = document.getElementById('balanceArms');
-    balance.addEventListener('click', balanceArms);
-    balance.disabled = viewMode === 'single';
+    document.getElementById('armLink').addEventListener('click', function () {
+      setArmsLinked(!armsLinked);
+    });
 
     document.getElementById('viewSingle').addEventListener('click', function () { setView('single'); });
     document.getElementById('viewCompare').addEventListener('click', function () { setView('compare'); });
@@ -286,18 +298,25 @@
     });
   }
 
-  // Copy the Control arm's per-arm parameters onto the Test arm so both arms are
-  // identical, then restart both from the same state. Global params (population,
-  // initially infected) are already shared, so only per-arm params are copied.
-  function balanceArms() {
-    App.PARAMS.forEach(function (def) {
-      if (def.scope === 'global') { return; }
-      arms.test.params[def.key] = arms.control.params[def.key];
-    });
-    rebuildPanels(); // reflects copied toggles (e.g. quarantine on/off) + diff
-    arms.test.sim.refreshBehavior();
-    resizeCanvases();
-    resetAll();
+  // Link toggle: when turned ON, copy the Control arm's per-arm parameters onto
+  // the Test arm and keep them live-synced (see onParamChange). When OFF, the
+  // arms can be edited independently. Global params are already shared.
+  function setArmsLinked(on) {
+    armsLinked = on;
+    var btn = document.getElementById('armLink');
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (on) {
+      App.PARAMS.forEach(function (def) {
+        if (def.scope === 'global') { return; }
+        arms.test.params[def.key] = arms.control.params[def.key];
+      });
+      rebuildPanels();
+      arms.test.sim.refreshBehavior();
+      resizeCanvases();
+      resetAll();
+      updateDiff();
+    }
   }
 
   function setView(mode) {
@@ -311,7 +330,6 @@
     armsEl.classList.toggle('single-view', mode === 'single');
     armsEl.classList.toggle('batch-view', mode === 'batch');
     document.getElementById('batch').style.display = mode === 'batch' ? 'block' : 'none';
-    document.getElementById('balanceArms').disabled = mode === 'single';
 
     // Visible params differ (batch shows common-only) → rebuild both panels.
     rebuildPanels();
