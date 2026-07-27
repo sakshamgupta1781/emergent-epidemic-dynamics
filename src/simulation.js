@@ -31,7 +31,6 @@
   var HH_BREATHE_AMP = 0.28;   // fraction the orbit distance breathes in/out
   var HH_BREATHE_FREQ = 1.2;   // radians/sim-second of the breathing wave
   var SEP_ITERS = 4;           // relaxation passes for hard household separation
-  var TRAVEL_SPEED = 4;        // in-transit dots hurry across the map between cells
 
   var COLORS = {
     S: '#2ecc71', // green  — susceptible
@@ -249,9 +248,7 @@
     // Current community for transmission: home cell, the visited cell when away,
     // or -2 while in transit (on the road → mixes with nobody).
     function curCell(ag) {
-      if (ag.travelState === 'away') { return ag.awayCommunity; }
-      if (ag.travelState === 'traveling') { return -2; }
-      return ag.communityId;
+      return ag.travelState === 'away' ? ag.awayCommunity : ag.communityId;
     }
     var rng = null; // wander uses a cheap deterministic-per-step RNG below
     var i, j, a, b, dx, dy;
@@ -387,47 +384,28 @@
         a = agents[i];
         if (a.inQuarantine) { wanderInRect(a, zx, zy, zw, zh, false); continue; }
 
-        // State transitions.
+        // Travel is instant (teleport) so it adds no time to the trip.
         if (a.travelState === 'home') {
           if (travelRate > 0 && rng.next() < travelRate * dt) {
             var tgt = rng.int(0, 6);            // pick a random OTHER community
             if (tgt >= a.communityId) { tgt++; } // 0..7 excluding the home cell
             a.awayCommunity = tgt;
-            a.travelState = 'traveling';
-            a.travelToHome = false;
+            a.travelState = 'away';
+            a.tripTimer = tripDur;
             var tc = this.communityCellRect(tgt);
-            a.travelTX = tc.x + rng.range(0, tc.w);
-            a.travelTY = tc.y + rng.range(0, tc.h);
+            a.x = tc.x + rng.range(0, tc.w); a.y = tc.y + rng.range(0, tc.h);
           }
-        } else if (a.travelState === 'away') {
+        } else { // 'away'
           a.tripTimer -= dt;
           if (a.tripTimer <= 0) {
-            a.travelState = 'traveling';
-            a.travelToHome = true;
+            a.travelState = 'home';
+            a.awayCommunity = -1;
             var hc = this.communityCellRect(a.communityId);
-            a.travelTX = hc.x + rng.range(0, hc.w);
-            a.travelTY = hc.y + rng.range(0, hc.h);
+            a.x = hc.x + rng.range(0, hc.w); a.y = hc.y + rng.range(0, hc.h);
           }
         }
 
-        // In transit: move in a straight line toward the destination, crossing
-        // freely (walls don't apply). Arrive → settle into the target cell.
-        if (a.travelState === 'traveling') {
-          var vx = a.travelTX - a.x, vy = a.travelTY - a.y;
-          var d = Math.hypot(vx, vy) || 1;
-          a.vx = vx / d; a.vy = vy / d;
-          var step = a.speedBase * dotSpeed * dt * TRAVEL_SPEED;
-          if (step >= d) {
-            a.x = a.travelTX; a.y = a.travelTY;
-            if (a.travelToHome) { a.travelState = 'home'; a.awayCommunity = -1; }
-            else { a.travelState = 'away'; a.tripTimer = tripDur; }
-          } else {
-            a.x += a.vx * step; a.y += a.vy * step;
-          }
-          continue; // no in-cell wander while on the road
-        }
-
-        // Home or away: wander confined to the current community cell.
+        // Wander confined to the current community cell (home or away).
         var cellIdx = a.travelState === 'away' ? a.awayCommunity : a.communityId;
         var cr = this.communityCellRect(cellIdx);
         wanderInRect(a, cr.x, cr.y, cr.w, cr.h, true);
