@@ -11,7 +11,6 @@
   var MODES = ['individuals', 'households', 'communities'];
   var MODE_LABEL = { individuals: 'Individuals', households: 'Households', communities: 'Communities' };
   var BATCH_W = 360, BATCH_H = 360;
-  var BASE_SEED = 20260101;   // fixed base so batches are reproducible
   var SIM_DT = 0.5;           // sim-seconds per headless step (substeps internally)
   var TIME_CAP = 400;         // hard stop (sim-seconds) if an epidemic never clears
 
@@ -36,6 +35,12 @@
     var total = MODES.length * N;
     var done = 0;
 
+    // Fresh random base seed for THIS batch run, so re-running the experiment
+    // produces a new set of randomized starting states (different dot layouts and
+    // outcomes). Within a run, iteration i uses runBase+i, and Control/Test share
+    // that seed each iteration (paired), while iterations differ from each other.
+    var runBase = (Math.floor(Math.random() * 0x7fffffff) + 1) >>> 0;
+
     // Accumulators per mode.
     var acc = {};
     MODES.forEach(function (m) {
@@ -51,7 +56,7 @@
     var ti = 0;
     function tick() {
       var task = tasks[ti++];
-      var seed = BASE_SEED + task.iter;      // shared seed → paired control/test
+      var seed = (runBase + task.iter) >>> 0; // shared seed → paired control/test
       var c = runHeadless(controlParams, seed, task.mode);
       var t = runHeadless(testParams, seed, task.mode);
       var a = acc[task.mode];
