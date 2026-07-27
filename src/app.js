@@ -107,6 +107,8 @@
     var container = document.getElementById('globalParams');
     container.innerHTML = '';
     var hh = populationMode === 'households';
+    var controls = {}; // key -> {input, val, def} so controls can update each other
+
     App.globalParamDefs().filter(function (def) {
       return !def.requiresHouseholds || hh;
     }).forEach(function (def) {
@@ -131,6 +133,8 @@
         val.textContent = App.UI.fmt(def, v);
         arms.control.params[def.key] = v;
         arms.test.params[def.key] = v;
+        // Keep initially-infected at ~3.5% of the population as it scales.
+        if (def.key === 'population') { deriveInitialInfected(v, controls); }
         resizeCanvases();
         resetAll();
       });
@@ -138,7 +142,22 @@
       label.appendChild(span);
       label.appendChild(input);
       container.appendChild(label);
+      controls[def.key] = { input: input, val: val, def: def };
     });
+  }
+
+  var INITIAL_INFECTED_FRACTION = 0.035;
+
+  // Set both arms' initialInfected to ~3.5% of population and sync its slider.
+  function deriveInitialInfected(population, controls) {
+    var c = controls.initialInfected;
+    if (!c) { return; }
+    var d = c.def;
+    var v = Math.max(d.min, Math.min(d.max, Math.round(population * INITIAL_INFECTED_FRACTION)));
+    arms.control.params.initialInfected = v;
+    arms.test.params.initialInfected = v;
+    c.input.value = v;
+    c.val.textContent = App.UI.fmt(d, v);
   }
 
   // --------------------------------------------------- param change routing

@@ -87,8 +87,8 @@
     },
     {
       key: 'initialInfected', label: 'Initially infected', group: 'Simulation & environment',
-      min: 1, max: 50, step: 1, default: 3, scope: 'global',
-      help: 'How many people start out infected at time zero. Shared by both arms.'
+      min: 1, max: 50, step: 1, default: 7, scope: 'global',
+      help: 'How many people start out infected at time zero (defaults to ~3.5% of the population and re-derives when you change the population; still adjustable). Shared by both arms.'
     },
     {
       key: 'maxHouseholdSize', label: 'Max household size', group: 'Simulation & environment',
