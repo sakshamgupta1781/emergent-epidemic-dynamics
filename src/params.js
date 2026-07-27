@@ -44,7 +44,7 @@
     },
     {
       key: 'contactDurationToInfect', label: 'Contact time to infect', group: 'Disease parameters',
-      min: 0, max: 10, step: 0.1, default: 1.5, unit: 's', temporal: true,
+      min: 0, max: 10, step: 0.1, default: 1, unit: 's', temporal: true,
       help: 'Continuous time a susceptible person must spend within the infection radius of an infected person before catching the disease (resets if they move apart). Scaled by the global time multiplier.'
     },
     {
@@ -100,12 +100,12 @@
     // ---- Simulation & environment (GLOBAL — shared by both arms) -------------
     {
       key: 'population', label: 'Population', group: 'Simulation & environment',
-      min: 20, max: 500, step: 10, default: 200, scope: 'global',
+      min: 20, max: 500, step: 10, default: 300, scope: 'global',
       help: 'Total number of people (dots) in the simulation. Shared by both arms.'
     },
     {
       key: 'initialInfected', label: 'Initially infected', group: 'Simulation & environment',
-      min: 1, max: 50, step: 1, default: 7, scope: 'global',
+      min: 1, max: 50, step: 1, default: 11, scope: 'global',
       help: 'How many people start out infected at time zero (defaults to ~3.5% of the population and re-derives when you change the population; still adjustable). Shared by both arms.'
     },
     {
