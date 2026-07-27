@@ -251,13 +251,6 @@
       resetAll();
     });
 
-    var ds = document.getElementById('dotSpeed');
-    var dsVal = document.getElementById('dotSpeedVal');
-    ds.addEventListener('input', function () {
-      dotSpeed = parseFloat(ds.value);
-      dsVal.textContent = dotSpeed.toFixed(1) + '×';
-    });
-
     var tm = document.getElementById('timeMult');
     var tmVal = document.getElementById('timeMultVal');
     tm.addEventListener('input', function () {
