@@ -131,7 +131,6 @@
         ag.homeAngle = (Math.PI * 2) * (m / size);
         ag.homeBaseR = size === 1 ? 0 : rc;
         ag.breathePhase = rng.range(0, Math.PI * 2);
-        ag.outState = 'home';
         // Initial position at the (un-rotated) home slot.
         ag.x = ax + Math.cos(ag.homeAngle) * ag.homeBaseR;
         ag.y = ay + Math.sin(ag.homeAngle) * ag.homeBaseR;
@@ -146,7 +145,6 @@
   // Called on reset and whenever those params change live.
   Simulation.prototype._applyBehaviorFlags = function () {
     var dPct = this.params.socialDistancingPct / 100;
-    var qPct = this.params.quarantineOnInfectionPct / 100;
 
     // In household mode, social distancing is decided per HOUSEHOLD and inherited
     // by every member (so the same households avoid other households AND their
@@ -164,9 +162,6 @@
     for (var i = 0; i < this.agents.length; i++) {
       var a = this.agents[i];
       if (!this.households) { a.isDistancer = a._distanceRoll < dPct; }
-      a.willQuarantine = a._quarantineRoll < qPct;
-      // If quarantine policy was relaxed, release already-infected agents.
-      if (!a.willQuarantine && a.isQuarantined) { a.isQuarantined = false; }
     }
   };
 
@@ -251,8 +246,7 @@
 
     if (this.households) {
       // ---- Households mode -------------------------------------------------
-      var goOutRate = (this.params.goOutProbabilityPct || 0) / 100; // per sim-sec
-      var lingerT = this.params.timeOutside || 0;
+      // Households stay together and roam as a unit; nobody leaves the group.
       var rc = Math.min(10, radius * 0.4);
       // Anchor separation below which two households' orbiting/breathing members
       // could enter each other's infection radius → distancer households avoid it.
@@ -327,39 +321,17 @@
         }
       }
 
-      // 2) Each person moves according to their outing state.
+      // 2) Each person sits at their (orbiting/breathing) home slot.
       for (i = 0; i < n; i++) {
         a = agents[i];
-        if (a.isQuarantined) { continue; } // isolating: stays put
         var hh = this.households[a.householdId];
-        if (a.outState === 'home') {
-          var ht = homeTarget(a, hh);
-          a.x = ht.x; a.y = ht.y;
-          if (goOutRate > 0 && rng.next() < goOutRate * dt) {
-            a.outState = 'out';
-            a.outTimer = lingerT;
-            var ra = rng.range(0, Math.PI * 2);
-            a.vx = Math.cos(ra); a.vy = Math.sin(ra);
-          }
-        } else if (a.outState === 'out') {
-          wander(a, true); // distancing applies only to people who are out
-          a.outTimer -= dt;
-          if (a.outTimer <= 0) { a.outState = 'returning'; }
-        } else { // 'returning' — steer back toward the (moving) home slot
-          var home = homeTarget(a, hh);
-          var tx = home.x - a.x, ty = home.y - a.y;
-          var td = Math.hypot(tx, ty) || 1;
-          a.vx = tx / td; a.vy = ty / td;
-          a.x += a.vx * a.speedBase * dotSpeed * dt;
-          a.y += a.vy * a.speedBase * dotSpeed * dt;
-          if (td < rc + 1) { a.outState = 'home'; a.x = home.x; a.y = home.y; }
-        }
+        var ht = homeTarget(a, hh);
+        a.x = ht.x; a.y = ht.y;
       }
     } else {
       // ---- Individuals mode (everyone wanders; distancing for all) ---------
       for (i = 0; i < n; i++) {
         a = agents[i];
-        if (a.isQuarantined) { continue; }
         wander(a, true);
       }
     }
@@ -382,7 +354,6 @@
             // Good hygiene gives a chance to dodge infection this episode.
             if (dodgeProb <= 0 || rng.next() >= dodgeProb) {
               a.infect();
-              if (a.willQuarantine) { a.isQuarantined = true; }
             } else {
               a.exposure = 0; // dodged — must re-accumulate contact for another try
             }
@@ -394,7 +365,6 @@
         a.infectedTimer += dt;
         if (a.infectedTimer >= infectiousDur) {
           a.state = R;
-          a.isQuarantined = false; // recovered people move again
         }
       }
     }
@@ -440,24 +410,24 @@
     var i, a, col;
 
     // Pass 0: household connecting lines (drawn under everything else) so each
-    // family reads as a connected group. Members at home get solid links to the
-    // household anchor; a person who is out/returning keeps a faint dashed tether.
+    // family reads as a connected group. Star from one real member to the others
+    // — solid straight dot-to-dot lines; single-person households draw nothing.
     if (this.households) {
+      ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(160,170,190,0.5)';
+      ctx.lineWidth = 1.3;
       for (i = 0; i < this.households.length; i++) {
         var hh = this.households[i];
-        for (var mi = 0; mi < hh.members.length; mi++) {
-          var mem = agents[hh.members[mi]];
-          var away = mem.outState !== 'home';
+        if (hh.members.length < 2) { continue; }
+        var hub = agents[hh.members[0]];
+        for (var mj = 1; mj < hh.members.length; mj++) {
+          var mem = agents[hh.members[mj]];
           ctx.beginPath();
-          ctx.moveTo(hh.anchorX, hh.anchorY);
+          ctx.moveTo(hub.x, hub.y);
           ctx.lineTo(mem.x, mem.y);
-          ctx.strokeStyle = away ? 'rgba(160,170,190,0.20)' : 'rgba(160,170,190,0.45)';
-          ctx.lineWidth = away ? 1 : 1.5;
-          if (away) { ctx.setLineDash([3, 3]); } else { ctx.setLineDash([]); }
           ctx.stroke();
         }
       }
-      ctx.setLineDash([]);
     }
 
     // Pass 1: infection-radius ring — ONLY for infected people. Each infected
@@ -502,14 +472,6 @@
       ctx.arc(a.x, a.y, 3.2, 0, Math.PI * 2);
       ctx.fillStyle = col;
       ctx.fill();
-      if (a.isQuarantined) {
-        // ring to mark quarantined agents
-        ctx.beginPath();
-        ctx.arc(a.x, a.y, 5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#f1c40f';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-      }
     }
   };
 

@@ -61,23 +61,6 @@
       min: 0, max: 100, step: 1, default: 0, unit: '%',
       help: 'Good hygiene / preventive practices (handwashing, masks, etc.). The percentage chance that a sustained close contact does NOT lead to infection — higher values reduce transmission and slow the spread.'
     },
-    {
-      key: 'goOutProbabilityPct', label: 'Going-out probability', group: 'Personal control',
-      min: 0, max: 100, step: 1, default: 0, unit: '%', requiresHouseholds: true,
-      help: 'How often a person at home leaves the household to mix with others: the chance per simulation-second of starting an outing. Only applies in Households mode.'
-    },
-    {
-      key: 'timeOutside', label: 'Time outside household', group: 'Personal control',
-      min: 0.5, max: 20, step: 0.5, default: 3, unit: 's', temporal: true, requiresHouseholds: true,
-      help: 'How long each outing lasts before the person returns home. Scaled by the global time multiplier. Only applies in Households mode.'
-    },
-
-    // ---- Public policy (scaffolded — more levers added in a later pass) ------
-    {
-      key: 'quarantineOnInfectionPct', label: 'Quarantine on infection', group: 'Public policy',
-      min: 0, max: 100, step: 1, default: 0, unit: '%',
-      help: 'Percentage of newly-infected people who immediately stop moving (quarantine), reducing onward spread.'
-    },
 
     // ---- Simulation & environment (GLOBAL — shared by both arms) -------------
     {

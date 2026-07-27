@@ -178,12 +178,11 @@
 
   function onParamChange(name, key) {
     var a = arms[name];
-    if (key === 'socialDistancingPct' || key === 'quarantineOnInfectionPct') {
+    if (key === 'socialDistancingPct') {
       a.sim.refreshBehavior();
     }
-    // Disease + outing params (radius, contact, infectious duration, going-out
-    // probability, time outside) are read live each step, so no extra work.
-    // Structural/global params are handled by their own controls.
+    // Other params are read live each step; structural/global params are handled
+    // by their own controls.
     updateDiff();
   }
 
