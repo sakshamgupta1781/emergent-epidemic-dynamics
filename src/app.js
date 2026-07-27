@@ -178,11 +178,17 @@
 
   function onParamChange(name, key) {
     var a = arms[name];
-    if (key === 'socialDistancingPct') {
+    if (key === 'quarantineEnabled') {
+      // Show/hide the quarantine knobs for this arm, and update behavior live.
+      rebuildPanels();
+      a.sim.refreshBehavior();
+      return; // rebuildPanels already refreshed diff highlighting
+    }
+    if (key === 'socialDistancingPct' || key === 'quarantineCompliancePct') {
       a.sim.refreshBehavior();
     }
-    // Other params are read live each step; structural/global params are handled
-    // by their own controls.
+    // Other params (disease, quarantine delay/threshold) are read live each
+    // step; structural/global params are handled by their own controls.
     updateDiff();
   }
 
@@ -258,11 +264,10 @@
       if (def.scope === 'global') { return; }
       arms.test.params[def.key] = arms.control.params[def.key];
     });
-    arms.test.panel.refresh();
+    rebuildPanels(); // reflects copied toggles (e.g. quarantine on/off) + diff
     arms.test.sim.refreshBehavior();
     resizeCanvases();
     resetAll();
-    updateDiff();
   }
 
   function setView(mode, singleBtn, compareBtn) {

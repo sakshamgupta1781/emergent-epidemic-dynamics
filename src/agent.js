@@ -26,6 +26,7 @@
     this.infectedTimer = 0;   // sim-seconds spent infected
     this.exposure = 0;        // cumulative sim-seconds within an infected radius
     this.isDistancer = false; // practices social distancing
+    this.inQuarantine = false; // moved into the quarantine zone (isolated)
     this.ringStartMs = null;  // render-clock timestamp when the infection ring
                               // animation begins (set on first infected frame)
 

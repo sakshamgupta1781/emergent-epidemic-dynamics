@@ -65,6 +65,7 @@
     this.history = [];
     this._recordAcc = 0;
     this.peakInfected = 0;
+    this.govQuarantineActive = false; // latched once the impacted threshold hits
 
     for (var idx = 0; idx < n; idx++) {
       var x = rng.range(0, this.width);
@@ -145,6 +146,8 @@
   // Called on reset and whenever those params change live.
   Simulation.prototype._applyBehaviorFlags = function () {
     var dPct = this.params.socialDistancingPct / 100;
+    var qPct = (this.params.quarantineCompliancePct || 0) / 100;
+    var qEnabled = !!this.params.quarantineEnabled;
 
     // In household mode, social distancing is decided per HOUSEHOLD and inherited
     // by every member (so the same households avoid other households AND their
@@ -162,12 +165,22 @@
     for (var i = 0; i < this.agents.length; i++) {
       var a = this.agents[i];
       if (!this.households) { a.isDistancer = a._distanceRoll < dPct; }
+      a.willQuarantine = a._quarantineRoll < qPct;
+      // If quarantine is turned off, everyone leaves the zone.
+      if (!qEnabled && a.inQuarantine) { a.inQuarantine = false; }
     }
   };
 
   // Public: call after live edits to socialDistancing / quarantine sliders.
   Simulation.prototype.refreshBehavior = function () {
     this._applyBehaviorFlags();
+  };
+
+  // The quarantine zone: a boxed-off corner (bottom-right) of the current world.
+  Simulation.prototype.quarantineZone = function () {
+    var m = 6;
+    var qw = this.width * 0.32, qh = this.height * 0.32;
+    return { x: this.width - qw - m, y: this.height - qh - m, w: qw, h: qh };
   };
 
   // Advance the simulation by simDt sim-seconds (may substep for stability).
@@ -244,6 +257,74 @@
       reflect(ag);
     }
 
+    // --- Quarantine setup --------------------------------------------------
+    var qEnabled = !!this.params.quarantineEnabled;
+    var qDelay = this.params.quarantineDelay || 0;
+    var zone = null, zx = 0, zy = 0, zw = 0, zh = 0;
+    if (qEnabled) {
+      var trig = (this.params.quarantineTriggerPct || 0) / 100;
+      var cc = this.counts();
+      if (!this.govQuarantineActive && (cc.i + cc.r) / cc.total >= trig) {
+        this.govQuarantineActive = true; // latch: policy stays on once triggered
+      }
+      zone = this.quarantineZone();
+      zx = zone.x; zy = zone.y; zw = zone.w; zh = zone.h;
+    }
+    var govActive = this.govQuarantineActive;
+
+    // Push a non-quarantined agent out of the zone (expanded by `margin`). The
+    // zone hugs the bottom-right corner, so the exposed edges are left and top.
+    function keepOut(ag, margin) {
+      if (!zone) { return; }
+      var minX = zx - margin, minY = zy - margin;
+      if (ag.x <= minX || ag.y <= minY) { return; }
+      if (ag.x - minX < ag.y - minY) { ag.x = minX; ag.vx = -Math.abs(ag.vx); }
+      else { ag.y = minY; ag.vy = -Math.abs(ag.vy); }
+    }
+
+    // An agent wanders confined to an arbitrary rectangle (the quarantine zone),
+    // with optional distancing steer.
+    function wanderInRect(ag, rx, ry, rw, rh, allowDistance) {
+      var angle = Math.atan2(ag.vy, ag.vx) + (rng.next() - 0.5) * WANDER * dt;
+      var sx = Math.cos(angle), sy = Math.sin(angle);
+      if (allowDistance && ag.isDistancer) {
+        var repX = 0, repY = 0, found = false;
+        for (var jj = 0; jj < n; jj++) {
+          var bb = agents[jj];
+          if (bb === ag) { continue; }
+          var ex = ag.x - bb.x, ey = ag.y - bb.y;
+          var e2 = ex * ex + ey * ey;
+          if (e2 > 0 && e2 < r2) {
+            var ed = Math.sqrt(e2);
+            repX += ex / ed; repY += ey / ed; found = true;
+          }
+        }
+        if (found) {
+          sx += repX * DISTANCE_STEER * dt;
+          sy += repY * DISTANCE_STEER * dt;
+          var mag = Math.hypot(sx, sy) || 1; sx /= mag; sy /= mag;
+        }
+      }
+      ag.vx = sx; ag.vy = sy;
+      ag.x += ag.vx * ag.speedBase * dotSpeed * dt;
+      ag.y += ag.vy * ag.speedBase * dotSpeed * dt;
+      if (ag.x < rx) { ag.x = rx; ag.vx = Math.abs(ag.vx); }
+      else if (ag.x > rx + rw) { ag.x = rx + rw; ag.vx = -Math.abs(ag.vx); }
+      if (ag.y < ry) { ag.y = ry; ag.vy = Math.abs(ag.vy); }
+      else if (ag.y > ry + rh) { ag.y = ry + rh; ag.vy = -Math.abs(ag.vy); }
+    }
+
+    // Move a compliant infected person into the zone once the government policy
+    // is active and their post-infection delay has elapsed.
+    function maybeEnterQuarantine(ag) {
+      if (qEnabled && govActive && ag.willQuarantine && !ag.inQuarantine &&
+          ag.infectedTimer >= qDelay) {
+        ag.inQuarantine = true;
+        ag.x = zx + rng.range(0, zw);
+        ag.y = zy + rng.range(0, zh);
+      }
+    }
+
     if (this.households) {
       // ---- Households mode -------------------------------------------------
       // Households stay together and roam as a unit; nobody leaves the group.
@@ -287,6 +368,17 @@
         else if (h.anchorX > w) { h.anchorX = w; h.vx = -Math.abs(h.vx); }
         if (h.anchorY < 0) { h.anchorY = 0; h.vy = Math.abs(h.vy); }
         else if (h.anchorY > hgt) { h.anchorY = hgt; h.vy = -Math.abs(h.vy); }
+
+        // Keep whole households out of the quarantine zone (margin covers the
+        // members' orbit so nobody drifts into the isolation ward).
+        if (zone) {
+          var aMin = rc * 1.4 + 4; // covers members' orbit + breathing reach
+          var zminX = zx - aMin, zminY = zy - aMin;
+          if (h.anchorX > zminX && h.anchorY > zminY) {
+            if (h.anchorX - zminX < h.anchorY - zminY) { h.anchorX = zminX; h.vx = -Math.abs(h.vx); }
+            else { h.anchorY = zminY; h.vy = -Math.abs(h.vy); }
+          }
+        }
       }
 
       // 1b) Hard separation: push distancer households apart until no distancer
@@ -321,9 +413,10 @@
         }
       }
 
-      // 2) Each person sits at their (orbiting/breathing) home slot.
+      // 2) Each person sits at their home slot, unless isolated in the zone.
       for (i = 0; i < n; i++) {
         a = agents[i];
+        if (a.inQuarantine) { wanderInRect(a, zx, zy, zw, zh, false); continue; }
         var hh = this.households[a.householdId];
         var ht = homeTarget(a, hh);
         a.x = ht.x; a.y = ht.y;
@@ -332,7 +425,9 @@
       // ---- Individuals mode (everyone wanders; distancing for all) ---------
       for (i = 0; i < n; i++) {
         a = agents[i];
+        if (a.inQuarantine) { wanderInRect(a, zx, zy, zw, zh, false); continue; }
         wander(a, true);
+        keepOut(a, 4); // stay clear of the quarantine zone
       }
     }
 
@@ -344,7 +439,8 @@
         var inContact = false;
         for (j = 0; j < n; j++) {
           b = agents[j];
-          if (b.state !== I) { continue; }
+          // Quarantined (isolated) infected people don't transmit.
+          if (b.state !== I || b.inQuarantine) { continue; }
           dx = a.x - b.x; dy = a.y - b.y;
           if (dx * dx + dy * dy < r2) { inContact = true; break; }
         }
@@ -365,6 +461,9 @@
         a.infectedTimer += dt;
         if (a.infectedTimer >= infectiousDur) {
           a.state = R;
+          a.inQuarantine = false; // recovered people leave the zone
+        } else {
+          maybeEnterQuarantine(a); // move to the zone once delay/threshold met
         }
       }
     }
@@ -409,19 +508,42 @@
     var agents = this.agents;
     var i, a, col;
 
+    // Quarantine zone: a boxed-off isolation ward, drawn behind everything.
+    if (this.params.quarantineEnabled) {
+      var qz = this.quarantineZone();
+      ctx.fillStyle = 'rgba(241,196,15,0.06)';
+      ctx.fillRect(qz.x, qz.y, qz.w, qz.h);
+      ctx.setLineDash([6, 4]);
+      ctx.strokeStyle = 'rgba(241,196,15,0.55)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(qz.x, qz.y, qz.w, qz.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(241,196,15,0.85)';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Quarantine', qz.x + 6, qz.y + 5);
+    }
+
     // Pass 0: household connecting lines (drawn under everything else) so each
-    // family reads as a connected group. Star from one real member to the others
-    // — solid straight dot-to-dot lines; single-person households draw nothing.
+    // family reads as a connected group. Star from one real (non-quarantined)
+    // member to the others — solid straight dot-to-dot lines. No lines to members
+    // in the quarantine zone, and none for single-person households.
     if (this.households) {
       ctx.setLineDash([]);
       ctx.strokeStyle = 'rgba(160,170,190,0.5)';
       ctx.lineWidth = 1.3;
       for (i = 0; i < this.households.length; i++) {
         var hh = this.households[i];
-        if (hh.members.length < 2) { continue; }
-        var hub = agents[hh.members[0]];
-        for (var mj = 1; mj < hh.members.length; mj++) {
+        var hub = null, mj;
+        for (mj = 0; mj < hh.members.length; mj++) {
+          var cand = agents[hh.members[mj]];
+          if (!cand.inQuarantine) { hub = cand; break; }
+        }
+        if (!hub) { continue; }
+        for (mj = 0; mj < hh.members.length; mj++) {
           var mem = agents[hh.members[mj]];
+          if (mem === hub || mem.inQuarantine) { continue; }
           ctx.beginPath();
           ctx.moveTo(hub.x, hub.y);
           ctx.lineTo(mem.x, mem.y);
@@ -437,7 +559,7 @@
     // the population are naturally staggered by when each person was infected.
     for (i = 0; i < agents.length; i++) {
       a = agents[i];
-      if (a.state !== I) { continue; }
+      if (a.state !== I || a.inQuarantine) { continue; } // isolated: no reach shown
       if (a.ringStartMs == null) { a.ringStartMs = nowMs; }
 
       // Faint steady boundary at the full radius so the extent stays visible.

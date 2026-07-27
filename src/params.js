@@ -19,6 +19,8 @@
  *             params scale automatically; see app.js/simulation.js)
  *   scope     'global' → controlled once in the top bar, shared by both arms
  *   requiresHouseholds  true → only shown when population mode is "Households"
+ *   requiresQuarantine  true → only shown when that arm's quarantine is enabled
+ *   type      'toggle' → boolean checkbox instead of a slider (min/max/step omitted)
  *   help      optional tooltip text
  */
 (function (App) {
@@ -60,6 +62,28 @@
       key: 'hygienePct', label: 'Hygiene & prevention', group: 'Personal control',
       min: 0, max: 100, step: 1, default: 0, unit: '%',
       help: 'Good hygiene / preventive practices (handwashing, masks, etc.). The percentage chance that a sustained close contact does NOT lead to infection — higher values reduce transmission and slow the spread.'
+    },
+    {
+      key: 'quarantineCompliancePct', label: 'Quarantine compliance', group: 'Personal control',
+      min: 0, max: 100, step: 1, default: 70, unit: '%', requiresQuarantine: true,
+      help: 'Percentage of infected people who actually self-isolate (move into the quarantine zone) once quarantine is active. Only applies when quarantine is enabled.'
+    },
+    {
+      key: 'quarantineDelay', label: 'Quarantine delay', group: 'Personal control',
+      min: 0, max: 10, step: 0.5, default: 2, unit: 's', temporal: true, requiresQuarantine: true,
+      help: 'How long after getting infected a person waits before moving into the quarantine zone. Scaled by the global time multiplier. Only applies when quarantine is enabled.'
+    },
+
+    // ---- Public policy ------------------------------------------------------
+    {
+      key: 'quarantineEnabled', label: 'Enable quarantine', group: 'Public policy',
+      type: 'toggle', default: false,
+      help: 'Turn on a quarantine zone: compliant infected people are moved into an isolated corner of the map. Reveals the quarantine knobs.'
+    },
+    {
+      key: 'quarantineTriggerPct', label: 'Activation threshold', group: 'Public policy',
+      min: 0, max: 50, step: 1, default: 5, unit: '%', requiresQuarantine: true,
+      help: 'Government-mandated quarantine only kicks in once this % of the population has ever been infected (infected + removed).'
     },
 
     // ---- Simulation & environment (GLOBAL — shared by both arms) -------------
