@@ -10,6 +10,7 @@
   // Global run state.
   var running = false;
   var viewMode = 'single';           // 'single' | 'compare'
+  var populationMode = 'individuals'; // 'individuals' | 'households'
   var sharedSeed = true;
   var dotSpeed = 1;
   var timeMult = 1;
@@ -34,9 +35,8 @@
 
       var chart = new App.SIRChart(chartCanvas);
 
-      var panelCtrl = App.UI.buildPanel(panelEl, params, function (key) {
-        onParamChange(name, key);
-      });
+      var panelCtrl = App.UI.buildPanel(panelEl, params, makePanelCb(name),
+        { householdMode: populationMode === 'households' });
 
       arms[name] = {
         name: name,
@@ -46,6 +46,7 @@
         chart: chart,
         sim: sim,
         panel: panelCtrl,
+        panelEl: panelEl,
         countsEl: document.querySelector('[data-counts="' + name + '"]'),
         peakEl: document.querySelector('[data-peak="' + name + '"]')
       };
@@ -105,7 +106,10 @@
   function buildGlobalParams() {
     var container = document.getElementById('globalParams');
     container.innerHTML = '';
-    App.globalParamDefs().forEach(function (def) {
+    var hh = populationMode === 'households';
+    App.globalParamDefs().filter(function (def) {
+      return !def.requiresHouseholds || hh;
+    }).forEach(function (def) {
       var label = document.createElement('label');
       label.className = 'ctl';
       if (def.help) { label.title = def.help; }
@@ -138,14 +142,29 @@
   }
 
   // --------------------------------------------------- param change routing
+  function makePanelCb(name) {
+    return function (key) { onParamChange(name, key); };
+  }
+
+  // Rebuild both arms' panels (e.g. when population mode toggles conditional
+  // params on/off), preserving current values.
+  function rebuildPanels() {
+    ['control', 'test'].forEach(function (name) {
+      var a = arms[name];
+      a.panel = App.UI.buildPanel(a.panelEl, a.params, makePanelCb(name),
+        { householdMode: populationMode === 'households' });
+    });
+    updateDiff();
+  }
+
   function onParamChange(name, key) {
     var a = arms[name];
     if (key === 'socialDistancingPct' || key === 'quarantineOnInfectionPct') {
       a.sim.refreshBehavior();
     }
-    // Disease params (radius, contact, infectious duration) are read live each
-    // step, so no extra work needed. Structural params (population, initially
-    // infected) are global and handled in buildGlobalParams().
+    // Disease + outing params (radius, contact, infectious duration, going-out
+    // probability, time outside) are read live each step, so no extra work.
+    // Structural/global params are handled by their own controls.
     updateDiff();
   }
 
@@ -188,6 +207,18 @@
 
     document.getElementById('sharedSeed').addEventListener('change', function () {
       sharedSeed = this.checked;
+      resetAll();
+    });
+
+    var popMode = document.getElementById('populationMode');
+    popMode.value = populationMode;
+    popMode.addEventListener('change', function () {
+      populationMode = this.value;
+      arms.control.params.populationMode = populationMode;
+      arms.test.params.populationMode = populationMode;
+      buildGlobalParams();  // show/hide max household size
+      rebuildPanels();      // show/hide the two outing knobs
+      resizeCanvases();
       resetAll();
     });
 

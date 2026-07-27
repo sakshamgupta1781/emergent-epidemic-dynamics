@@ -29,6 +29,14 @@
     this.isQuarantined = false; // stops moving once infected (public policy)
     this.ringStartMs = null;  // render-clock timestamp when the infection ring
                               // animation begins (set on first infected frame)
+
+    // Household mode (set on reset when population mode is "households").
+    this.householdId = -1;    // index into Simulation.households (-1 = none)
+    this.homeAngle = 0;       // base angular slot around the household anchor
+    this.homeBaseR = 0;       // base orbit distance from the anchor
+    this.breathePhase = 0;    // per-member phase for the in/out "breathing"
+    this.outState = 'home';   // 'home' | 'out' | 'returning'
+    this.outTimer = 0;        // sim-seconds remaining in the current outing
   }
 
   Agent.S = S;

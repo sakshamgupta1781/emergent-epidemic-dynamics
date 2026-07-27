@@ -17,6 +17,8 @@
  *   temporal  true if the value is measured in simulation-seconds (documentation
  *             only — the time multiplier scales the whole clock, so temporal
  *             params scale automatically; see app.js/simulation.js)
+ *   scope     'global' → controlled once in the top bar, shared by both arms
+ *   requiresHouseholds  true → only shown when population mode is "Households"
  *   help      optional tooltip text
  */
 (function (App) {
@@ -52,7 +54,22 @@
     {
       key: 'socialDistancingPct', label: 'Social distancing', group: 'Personal control',
       min: 0, max: 100, step: 1, default: 0, unit: '%',
-      help: 'Percentage of the population that practices social distancing: they steer to keep at least one infection radius away from everyone else.'
+      help: 'Individuals mode: % of people who keep at least one infection radius from everyone else. Households mode: % of households that keep their whole family away from other households — and whose members also distance while they are out.'
+    },
+    {
+      key: 'hygienePct', label: 'Hygiene & prevention', group: 'Personal control',
+      min: 0, max: 100, step: 1, default: 0, unit: '%',
+      help: 'Good hygiene / preventive practices (handwashing, masks, etc.). The percentage chance that a sustained close contact does NOT lead to infection — higher values reduce transmission and slow the spread.'
+    },
+    {
+      key: 'goOutProbabilityPct', label: 'Going-out probability', group: 'Personal control',
+      min: 0, max: 100, step: 1, default: 0, unit: '%', requiresHouseholds: true,
+      help: 'How often a person at home leaves the household to mix with others: the chance per simulation-second of starting an outing. Only applies in Households mode.'
+    },
+    {
+      key: 'timeOutside', label: 'Time outside household', group: 'Personal control',
+      min: 0.5, max: 20, step: 0.5, default: 3, unit: 's', temporal: true, requiresHouseholds: true,
+      help: 'How long each outing lasts before the person returns home. Scaled by the global time multiplier. Only applies in Households mode.'
     },
 
     // ---- Public policy (scaffolded — more levers added in a later pass) ------
@@ -72,6 +89,11 @@
       key: 'initialInfected', label: 'Initially infected', group: 'Simulation & environment',
       min: 1, max: 50, step: 1, default: 3, scope: 'global',
       help: 'How many people start out infected at time zero. Shared by both arms.'
+    },
+    {
+      key: 'maxHouseholdSize', label: 'Max household size', group: 'Simulation & environment',
+      min: 1, max: 8, step: 1, default: 4, scope: 'global', requiresHouseholds: true,
+      help: 'In Households mode, people are split into groups of a random size between 1 and this value. Shared by both arms.'
     }
   ];
 
@@ -81,6 +103,9 @@
     for (var i = 0; i < PARAMS.length; i++) {
       out[PARAMS[i].key] = PARAMS[i].default;
     }
+    // Population mode is app-level (a mode selector, not a slider), but each arm
+    // carries it so the simulation can read it from this.params.
+    out.populationMode = 'individuals'; // 'individuals' | 'households'
     return out;
   }
 

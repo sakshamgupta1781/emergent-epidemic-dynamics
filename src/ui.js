@@ -22,14 +22,20 @@
    *   onChange  : callback(key, value) fired on every slider change
    * Returns a controller: { refresh(), rows: {key: {row, valueEl, input, def}} }
    */
-  function buildPanel(panelEl, paramsObj, onChange) {
+  function buildPanel(panelEl, paramsObj, onChange, opts) {
+    opts = opts || {};
     panelEl.innerHTML = '';
     var rows = {};
     var groups = App.paramsByGroup();
 
     groups.forEach(function (g) {
-      // Global-scoped params live in the top bar, not the per-arm panels.
-      var armParams = g.params.filter(function (p) { return p.scope !== 'global'; });
+      // Global-scoped params live in the top bar, not the per-arm panels; and
+      // household-only params are hidden unless population mode is "households".
+      var armParams = g.params.filter(function (p) {
+        if (p.scope === 'global') { return false; }
+        if (p.requiresHouseholds && !opts.householdMode) { return false; }
+        return true;
+      });
       if (!armParams.length) { return; }
       var groupEl = document.createElement('div');
       groupEl.className = 'param-group';
