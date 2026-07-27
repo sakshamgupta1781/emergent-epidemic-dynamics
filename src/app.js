@@ -66,6 +66,7 @@
   }
 
   function activeArms() {
+    if (viewMode === 'batch') { return []; } // no live sims in batch mode
     return viewMode === 'single' ? ['test'] : ['control', 'test'];
   }
 
@@ -165,7 +166,9 @@
   }
 
   // Visibility flags for conditional per-arm params, from the current mode.
+  // Batch mode shows only the controls common to every population mode.
   function panelOpts() {
+    if (viewMode === 'batch') { return { householdMode: false, communitiesMode: false }; }
     return {
       householdMode: populationMode === 'households',
       communitiesMode: populationMode === 'communities'
@@ -203,7 +206,7 @@
       arms.test.panel,
       arms.control.params,
       arms.test.params,
-      viewMode === 'compare'
+      viewMode === 'compare' || viewMode === 'batch'
     );
   }
 
@@ -256,10 +259,31 @@
     balance.addEventListener('click', balanceArms);
     balance.disabled = viewMode === 'single';
 
-    var single = document.getElementById('viewSingle');
-    var compare = document.getElementById('viewCompare');
-    single.addEventListener('click', function () { setView('single', single, compare); });
-    compare.addEventListener('click', function () { setView('compare', single, compare); });
+    document.getElementById('viewSingle').addEventListener('click', function () { setView('single'); });
+    document.getElementById('viewCompare').addEventListener('click', function () { setView('compare'); });
+    document.getElementById('viewBatch').addEventListener('click', function () { setView('batch'); });
+
+    wireBatchControls();
+  }
+
+  // Run the headless batch experiment and render the result tables.
+  function wireBatchControls() {
+    var btn = document.getElementById('runBatch');
+    var prog = document.getElementById('batchProgress');
+    btn.addEventListener('click', function () {
+      var iters = parseInt(document.getElementById('batchIterations').value, 10) || 20;
+      btn.disabled = true;
+      prog.textContent = 'Running… 0/' + (iters * App.Batch.MODES.length);
+      App.Batch.runBatch(
+        arms.control.params, arms.test.params, iters,
+        function (done, total) { prog.textContent = 'Running… ' + done + '/' + total; },
+        function (results) {
+          App.Batch.renderResults(document.getElementById('batchResults'), results);
+          prog.textContent = 'Done — ' + iters + ' iterations × ' + App.Batch.MODES.length + ' modes.';
+          btn.disabled = false;
+        }
+      );
+    });
   }
 
   // Copy the Control arm's per-arm parameters onto the Test arm so both arms are
@@ -276,15 +300,23 @@
     resetAll();
   }
 
-  function setView(mode, singleBtn, compareBtn) {
+  function setView(mode) {
     if (mode === viewMode) { return; }
     viewMode = mode;
-    singleBtn.classList.toggle('active', mode === 'single');
-    compareBtn.classList.toggle('active', mode === 'compare');
-    document.getElementById('arms').classList.toggle('single-view', mode === 'single');
+    document.getElementById('viewSingle').classList.toggle('active', mode === 'single');
+    document.getElementById('viewCompare').classList.toggle('active', mode === 'compare');
+    document.getElementById('viewBatch').classList.toggle('active', mode === 'batch');
+
+    var armsEl = document.getElementById('arms');
+    armsEl.classList.toggle('single-view', mode === 'single');
+    armsEl.classList.toggle('batch-view', mode === 'batch');
+    document.getElementById('batch').style.display = mode === 'batch' ? 'block' : 'none';
     document.getElementById('balanceArms').disabled = mode === 'single';
 
-    // Let layout settle, then measure + restart both arms from t=0 together.
+    // Visible params differ (batch shows common-only) → rebuild both panels.
+    rebuildPanels();
+
+    // Let layout settle, then measure + restart the live arms (none in batch).
     requestAnimationFrame(function () {
       resizeCanvases();
       resetAll();

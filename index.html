@@ -52,6 +52,7 @@
       <div class="view-toggle" role="group" aria-label="View mode">
         <button id="viewSingle" class="btn toggle active" type="button">Single</button>
         <button id="viewCompare" class="btn toggle" type="button">Compare</button>
+        <button id="viewBatch" class="btn toggle" type="button">Batch</button>
       </div>
     </div>
 
@@ -114,6 +115,24 @@
     </section>
   </main>
 
+  <!-- ===================== Batch experiment (headless) ==================== -->
+  <section id="batch" class="batch">
+    <div class="batch-bar">
+      <button id="runBatch" class="btn btn-primary" type="button">Run experiment</button>
+      <label class="ctl ctl-inline">
+        <span class="ctl-label">Iterations</span>
+        <input id="batchIterations" type="number" min="2" max="200" step="1" value="20" />
+      </label>
+      <span id="batchProgress" class="batch-progress"></span>
+    </div>
+    <p class="batch-hint">
+      Runs paired Control-vs-Test iterations (shared seed each iteration) headlessly for
+      every population mode, using only the controls common to all modes. Delta = Test −
+      Control; significant when p &lt; 0.05.
+    </p>
+    <div id="batchResults" class="batch-results"></div>
+  </section>
+
   <!-- Vendored Chart.js (works fully offline). CDN alternative:
        https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js -->
   <script src="lib/chart.umd.min.js"></script>
@@ -125,6 +144,8 @@
   <script src="src/simulation.js"></script>
   <script src="src/charts.js"></script>
   <script src="src/ui.js"></script>
+  <script src="src/stats.js"></script>
+  <script src="src/batch.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>

@@ -282,3 +282,36 @@ input[type="range"] {
   .arm { border-bottom: 1px dashed var(--border); padding-bottom: 8px; margin-bottom: 8px; }
   .arm-params, .arm-sim, .arm-chart { margin-bottom: 12px; }
 }
+
+/* ------------------------------ Batch mode -------------------------------- */
+/* In batch view the two param panels sit side by side; no sim/chart. */
+.arms.batch-view { grid-template-columns: 1fr 1fr; }
+.arms.batch-view .arm-sim,
+.arms.batch-view .arm-chart { display: none; }
+
+#batch { display: none; padding: 4px 20px 32px; }
+.batch-bar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ctl-inline { flex-direction: row; align-items: center; gap: 8px; min-width: auto; }
+.ctl-inline input[type="number"] {
+  width: 64px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 7px; font-size: 13px;
+}
+.batch-progress { color: var(--muted); font-size: 13px; }
+.batch-hint { color: var(--muted); font-size: 12px; max-width: 820px; margin: 8px 0 4px; }
+
+.batch-results { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.batch-table {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; flex: 1 1 320px; min-width: 320px;
+}
+.batch-table h3 { margin: 0 0 8px; font-size: 14px; }
+.batch-table table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.batch-table th, .batch-table td {
+  text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.batch-table th:first-child, .batch-table td:first-child { text-align: left; }
+.batch-table thead th { color: var(--muted); font-weight: 600; }
+.batch-table tbody tr:last-child td { border-bottom: none; }
+.sig-yes { color: var(--s); font-weight: 700; }
+.sig-no { color: var(--muted); }
