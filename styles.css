@@ -40,13 +40,24 @@ body {
 /* ------------------------------- Global bar ------------------------------- */
 .global-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 24px;
   flex-wrap: wrap;
   padding: 14px 20px;
   background: linear-gradient(180deg, #182030, #131924);
   border-bottom: 1px solid var(--border);
 }
+
+/* Column 1: title + subtitle + the demo picker beneath them. */
+.brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 0 1 360px;
+  min-width: 260px;
+}
+.brand-col .demo-row { align-items: baseline; }
+.brand-col .demo-desc { max-width: 100%; }
 
 .brand h1 {
   margin: 0;
