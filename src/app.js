@@ -21,6 +21,10 @@
   // the exact params used), for the optional LLM analysis. Null until a run.
   var lastBatch = null;
 
+  // True only while applyDemo() is programmatically reconfiguring the app, so
+  // the clear-on-change guards don't wipe the demo selection we just applied.
+  var applyingDemo = false;
+
   var DEFAULT_AI_HINT =
     'Optional. Your key is stored locally in this browser and sent only to Anthropic.';
 
@@ -144,6 +148,7 @@
       input.value = arms.test.params[def.key];
 
       input.addEventListener('input', function () {
+        clearDemoSelection(); // a manual edit no longer matches the demo template
         var v = parseFloat(input.value);
         val.textContent = App.UI.fmt(def, v);
         arms.control.params[def.key] = v;
@@ -201,6 +206,7 @@
   }
 
   function onParamChange(name, key) {
+    clearDemoSelection(); // a manual edit no longer matches the demo template
     var a = arms[name];
     var isToggle = key === 'quarantineEnabled';
 
@@ -261,6 +267,7 @@
     var popMode = document.getElementById('populationMode');
     popMode.value = populationMode;
     popMode.addEventListener('change', function () {
+      clearDemoSelection();
       populationMode = this.value;
       arms.control.params.populationMode = populationMode;
       arms.test.params.populationMode = populationMode;
@@ -271,15 +278,113 @@
     });
 
     document.getElementById('armLink').addEventListener('click', function () {
+      clearDemoSelection();
       setArmsLinked(!armsLinked);
     });
 
-    document.getElementById('viewSingle').addEventListener('click', function () { setView('single'); });
-    document.getElementById('viewCompare').addEventListener('click', function () { setView('compare'); });
-    document.getElementById('viewBatch').addEventListener('click', function () { setView('batch'); });
+    document.getElementById('viewSingle').addEventListener('click', function () { clearDemoSelection(); setView('single'); });
+    document.getElementById('viewCompare').addEventListener('click', function () { clearDemoSelection(); setView('compare'); });
+    document.getElementById('viewBatch').addEventListener('click', function () { clearDemoSelection(); setView('batch'); });
 
     wireBatchControls();
+    wireDemos();
     wireAnalysis();
+  }
+
+  // ------------------------------------------------------- Demo mode
+  function wireDemos() {
+    var sel = document.getElementById('demoMode');
+    var opt0 = document.createElement('option');
+    opt0.value = ''; opt0.textContent = '— Choose a demo —';
+    sel.appendChild(opt0);
+    (App.DEMOS || []).forEach(function (d) {
+      var o = document.createElement('option');
+      o.value = d.id; o.textContent = d.label;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () {
+      var id = sel.value;
+      if (!id) { clearDemoSelection(); return; }
+      var demo = (App.DEMOS || []).filter(function (d) { return d.id === id; })[0];
+      if (demo) { applyDemo(demo); }
+    });
+  }
+
+  // Reset the demo dropdown + hide its description (unless we're mid-apply).
+  function clearDemoSelection() {
+    if (applyingDemo) { return; }
+    var sel = document.getElementById('demoMode');
+    if (sel) { sel.value = ''; }
+    var desc = document.getElementById('demoDesc');
+    if (desc) { desc.textContent = ''; desc.hidden = true; }
+  }
+
+  // Copy every default onto an existing params object IN PLACE (preserving its
+  // identity, since the sim and panels hold a reference to it).
+  function applyDefaultsInto(target) {
+    var d = App.paramDefaults();
+    for (var k in d) { if (d.hasOwnProperty(k)) { target[k] = d[k]; } }
+  }
+
+  // Apply a curated template: reset both arms to defaults, set the population
+  // mode + per-arm overrides, enter the demo's view, and pause for the user to
+  // press Play. Everything is programmatic, so applyingDemo guards the clears.
+  function applyDemo(demo) {
+    applyingDemo = true;
+
+    // 1) Clean baseline on both arms (mutate in place — keep object identity).
+    applyDefaultsInto(arms.control.params);
+    applyDefaultsInto(arms.test.params);
+
+    // 2) Population mode (both arms + the global selector).
+    var mode = demo.populationMode || 'individuals';
+    populationMode = mode;
+    arms.control.params.populationMode = mode;
+    arms.test.params.populationMode = mode;
+    document.getElementById('populationMode').value = mode;
+
+    // 3) Overrides: shared globals, then per-arm studied variables.
+    function applyOver(target, over) {
+      if (!over) { return; }
+      for (var k in over) { if (over.hasOwnProperty(k)) { target[k] = over[k]; } }
+    }
+    applyOver(arms.control.params, demo.globals);
+    applyOver(arms.test.params, demo.globals);
+    applyOver(arms.control.params, demo.control);
+    applyOver(arms.test.params, demo.test);
+
+    // 4) Unlink so the arms can differ.
+    armsLinked = false;
+    var linkBtn = document.getElementById('armLink');
+    linkBtn.classList.remove('active');
+    linkBtn.setAttribute('aria-pressed', 'false');
+
+    // 5) Enter the demo's view (handles the class/section toggles).
+    setView(demo.view || 'compare');
+
+    // 6) Rebuild the top-bar globals + both panels for the new mode/values.
+    buildGlobalParams();
+    rebuildPanels();
+
+    // 7) Paused, ready for Play.
+    running = false;
+    var playBtn = document.getElementById('playPause');
+    playBtn.textContent = '▶ Play';
+    playBtn.classList.add('btn-play');
+    playBtn.classList.remove('btn-pause');
+    updateAnalyzeEnabled();
+
+    // 8) Fresh sims + diff highlight.
+    resizeCanvases();
+    resetAll();
+    updateDiff();
+
+    // 9) Show the description.
+    var desc = document.getElementById('demoDesc');
+    desc.textContent = demo.description;
+    desc.hidden = false;
+
+    applyingDemo = false;
   }
 
   // -------------------------------------------------- LLM analysis (optional)

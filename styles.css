@@ -326,6 +326,10 @@ input[type="range"] {
 }
 .run-controls { display: flex; gap: 8px; }
 
+/* Demo mode: template picker description line. */
+.demo-desc { color: var(--muted); font-size: 12px; margin: 0; max-width: 660px; }
+.demo-desc[hidden] { display: none; }
+
 /* Colored run buttons. */
 .btn-play { background: var(--s); border-color: var(--s); color: #08130c; font-weight: 700; }
 .btn-play:hover { background: #43d67e; }

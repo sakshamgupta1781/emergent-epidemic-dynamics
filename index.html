@@ -15,6 +15,16 @@
     </div>
 
     <div class="bar-rows">
+      <!-- Row 0: demo templates -->
+      <div class="bar-row">
+        <span class="row-label">Demo mode</span>
+        <label class="ctl ctl-inline">
+          <span class="ctl-label">Template</span>
+          <select id="demoMode" class="select"></select>
+        </label>
+        <p id="demoDesc" class="demo-desc" hidden></p>
+      </div>
+
       <!-- Row 1: global parameters -->
       <div class="bar-row">
         <span class="row-label">Global parameters</span>
@@ -204,6 +214,7 @@
   <script src="src/stats.js"></script>
   <script src="src/batch.js"></script>
   <script src="src/llm.js"></script>
+  <script src="src/demos.js"></script>
   <script src="src/app.js"></script>
 </body>
 </html>
