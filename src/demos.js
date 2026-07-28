@@ -49,6 +49,21 @@
         'simulation.',
       test: { socialDistancingPct: 20, hygienePct: 15 }
       // control omitted → stays at defaults (0% distancing, 0% hygiene)
+    },
+    {
+      id: 'quarantine-policy',
+      label: 'Implications of a Quarantine Policy',
+      view: 'compare',
+      populationMode: 'individuals',
+      description:
+        'When cases climb, authorities stand up a quarantine program to isolate the infected. ' +
+        'This demo enables that policy on the Treatment arm only: once 5% of the population has ' +
+        'been infected, government quarantine kicks in and 20% of infected people comply by ' +
+        'moving into an isolated ward — while the Control arm has no quarantine at all. See how ' +
+        'even partial isolation of the contagious blunts the peak. Hit ▶ Play to start the ' +
+        'simulation.',
+      test: { quarantineEnabled: true, quarantineTriggerPct: 5, quarantineCompliancePct: 20 }
+      // control omitted → stays at defaults (quarantine disabled)
     }
   ];
 
