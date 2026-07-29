@@ -64,6 +64,31 @@
         'simulation.',
       test: { quarantineEnabled: true, quarantineTriggerPct: 5, quarantineCompliancePct: 20 }
       // control omitted → stays at defaults (quarantine disabled)
+    },
+    {
+      id: 'ebola-vs-covid',
+      label: 'Ebola vs COVID-19',
+      view: 'compare',
+      populationMode: 'communities',
+      globals: { population: 190, initialInfected: 3 },
+      description:
+        'Compares two very different diseases across a set of semi-connected communities. The ' +
+        'Control arm is Ebola: a large infection radius and near-instant transmission make it ' +
+        'fiercely infectious, but a very short infectious period removes people so fast that ' +
+        'the outbreak burns itself out inside a single community before it can travel. The ' +
+        'Treatment arm is COVID-19: less intense per contact, but a much longer infectious ' +
+        'period lets it seep across communities. The hypothesis — Ebola’s very ferocity, ' +
+        'infecting and removing people quickly, is exactly why it struggles to cross over into ' +
+        'other communities and geographies, while milder, longer-lasting COVID-19 spreads far ' +
+        'wider. Hit ▶ Play to start the simulation.',
+      control: {
+        infectionRadius: 30, contactDurationToInfect: 0.5,
+        infectiousDuration: 2, interCommunityTravelPct: 2
+      },
+      test: {
+        infectionRadius: 20, contactDurationToInfect: 1,
+        infectiousDuration: 14, interCommunityTravelPct: 2
+      }
     }
   ];
 
