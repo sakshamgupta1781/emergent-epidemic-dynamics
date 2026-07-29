@@ -1,4 +1,4 @@
-# Design Rationale — Emergent Epidemic Dynamics
+# Design Rationale — Epidemic Lab
 
 A dependency-free, browser-based tool for understanding **emergent dynamics in viral spread** —
 and the methodologies and strategies used to shape it, contain it, and dull its impact. You

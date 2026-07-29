@@ -1,4 +1,4 @@
-# Emergent Epidemic Dynamics
+# Epidemic Lab
 
 An interactive, **dependency-free** browser tool for visualizing how a viral
 infection spreads through a population and for running **A/B experiments** on the
