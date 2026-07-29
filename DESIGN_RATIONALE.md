@@ -101,26 +101,34 @@ That chain — watch it → experiment on it → have it explained — is the wh
 Each below is stated as **decision → why → tradeoff**.
 
 - **A deliberately simplified population model.** People move as a randomized walk, and the model
-  intentionally *leaves out* real-world complications — **asymptomatic carriers**, the impact of
-  **immunity and reinfection**, **immunization rollout**, and **differences in age and mortality
-  data**. → *Why:* the aim is controls that are easy to understand and a clear read on the general
-  trends of the compartmental (SIR) model — not epidemiological precision. → *Tradeoff:* it won't
-  produce accurate real-world forecasts; it trades fidelity for clarity, keeping the core point —
-  how the S-I-R curve shifts when you change one lever — front and center rather than getting lost
-  in the depths of modeling real population behavior.
+  intentionally *leaves out* real-world complications:
+  - **asymptomatic carriers**;
+  - the impact of **immunity and reinfection**;
+  - **immunization rollout**;
+  - **differences in age and mortality data**.
+
+  → *Why:* the aim is controls that are easy to understand and a clear read on the general trends
+  of the compartmental (SIR) model — not epidemiological precision. → *Tradeoff:* it won't produce
+  accurate real-world forecasts; it trades fidelity for clarity, keeping the core point — how the
+  S-I-R curve shifts when you change one lever — front and center rather than getting lost in the
+  depths of modeling real population behavior.
 - **A deliberately simplified disease model.** A disease here is just three tunable knobs —
   *infection radius*, *contact-time-to-infect*, and *infectious duration*. Real disease modeling
-  is far richer: a per-contact **transmission probability / R₀** instead of a deterministic
-  contact time; a **latent (exposed) stage** before a person becomes infectious (the "E" in
-  SEIR); **pre-symptomatic and asymptomatic** transmission; an **infectiousness profile** that
-  rises and falls with viral load rather than staying flat; splitting "removed" into
-  **recovered vs. died** via a case-fatality rate; **over-dispersion / superspreading** (a small
-  fraction of people drive most transmission); **waning immunity, reinfection, and cross-immunity
-  across strains/variants**; **seasonality**; and **route-of-transmission or dose-response**
-  effects (airborne vs. contact, cumulative-exposure thresholds). → *Why:* three intuitive knobs
-  keep the cause→effect link legible so the core mechanics of the compartmental (SIR) model land.
-  → *Tradeoff:* far less epidemiological realism — deliberately, again choosing clarity over
-  depth so the general trends come across instead of drowning the user in disease-modeling detail.
+  is far richer:
+  - a per-contact **transmission probability / R₀** instead of a deterministic contact time;
+  - a **latent (exposed) stage** before a person becomes infectious;
+  - **pre-symptomatic and asymptomatic** transmission;
+  - an **infectiousness profile** that rises and falls with viral load rather than staying flat;
+  - splitting "removed" into **recovered vs. died** via a case-fatality rate;
+  - **over-dispersion / superspreading** (a small fraction of people drive most transmission);
+  - **waning immunity, reinfection, and cross-immunity** across strains/variants;
+  - **seasonality**;
+  - **route-of-transmission or dose-response** effects (airborne vs. contact, cumulative-exposure thresholds).
+
+  → *Why:* three intuitive knobs keep the cause→effect link legible so the core mechanics of the
+  compartmental (SIR) model land. → *Tradeoff:* far less epidemiological realism — deliberately,
+  again choosing clarity over depth so the general trends come across instead of drowning the
+  user in disease-modeling detail.
 
 ---
 
