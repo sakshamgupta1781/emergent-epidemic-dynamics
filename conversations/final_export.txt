@@ -1,0 +1,2738 @@
+╭─── Claude Code v2.1.215 ─────────────────────────────────────────────────────╮
+│                                 │ Tips for getting started                   │
+│          Welcome back!          │ Ask Claude to create a new app or clone a… │
+│                                 │ ────────────────────────────────────────── │
+│             ▐▛███▜▌             │ What's new                                 │
+│            ▝▜█████▛▘            │ Check the Claude Code changelog for updat… │
+│              ▘▘ ▝▝              │                                            │
+│                                 │                                            │
+│   Opus 4.8 · Google Vertex AI   │                                            │
+│        ~/workspace/sims         │                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ ▎ 🥑 Start using Avocado/MetaCode today and contribute to Muse Spark 🥑
+ ▎ Help us improve Avocado by using it for your daily workflows for the next 3-4 weeks. Learn more: https://fburl.com/workplace/5v9ba122
+
+✻ Conversation compacted (ctrl+o for history)
+
+
+⏺ This is a great addition — LLM-powered analysis of experiment results using
+  the user's own Anthropic key. Since I'm building a feature that calls the
+  Claude API, let me first consult the authoritative API reference (model IDs,
+  endpoint, browser-call requirements), then clarify the product decisions.
+
+⏺ Skill(claude-api)
+  ⎿  Successfully loaded skill · 4 tools allowed
+  ⎿  Context limit reached · /compact or /clear to continue
+
+❯ export this conversation history                                              
+  ⎿  Context limit reached · /compact or /clear to continue
+
+❯ /export                                                                       
+  ⎿  Conversation exported to:
+     /Users/sakshamg/workspace/sims/conversation-history.txt
+
+❯ ❯ One of the features that I would want to add is the ability to upload an    
+  Anthropic Claude key and help the user analyze the results of an experiment.  
+    If we are in the single-experiment mode, we should send the parameters for  
+  the experiment. What do those parameters mean? What values were they set at,  
+  and how did the time series look? For example, why did we see the infection   
+  peak, and what was the outcome for the overall population as opposed to the   
+  removed people or the susceptible people?                                     
+    The response should be succinct and not overly verbose, and it should       
+  explain to the user in simple terms what happened.                            
+    If you're in the compare mode, then all of this information should be       
+  synced for both the test and the control arms. We would want to analyze the   
+  results and see a couple of things:                                           
+    1. Were the outcomes inline with what we had expected? For example, if      
+  quarantine was enabled for the treatment arm but in the control arm           
+  quarantine was disabled, and if the peak infection rate or the susceptible    
+  population remained high and the peak infection rate remained low, this would 
+  mean that the treatment is working as expected. If there were any surprises,  
+  or if there were no changes that were seen despite quarantine controls being  
+  enabled in the treatment arm, we should                                       
+    look at what we can change to make sure we get a reading that is            
+  representative of the change that we have made. We can change the population  
+  and the initially infected values as well.                                    
+    2. When we are in the batch mode, we should also do something similar after 
+  the results are ready for the three population modes. We should be able to    
+  tell the user what exactly happened. If it was an expected result, we should  
+  acknowledge that. If it was not an expected result, what would be changed to  
+  make sure that we do get a statistically significant reading?                 
+    I want this capability to be enabled across all experiment types and all    
+  population modes, and the ability to add an Anthropic key should be made      
+  optional. Let me know if you have any clarifying product questions.           
+  ⎿  Read src/batch.js (138 lines)
+  ⎿  Referenced file styles.css
+  ⎿  Referenced file src/app.js
+  ⎿  Read index.html (165 lines)
+  ⎿  Read src/ui.js (180 lines)
+  ⎿  Plan file referenced (~/.claude/plans/inherited-pondering-ripple.md)
+  ⎿  Skills restored (claude-api, browser:browser, 10x-engineer:brainstorming)
+  ⎿  SessionStart:compact hook error
+  ⎿  Failed with non-blocking status code: INFO Installing 1 feature 
+     (browser)...
+  ⎿  SessionStart:compact says: .llms rules/skills injection is enabled. 
+     Configure with /llm-rules-info. To disable, use `claude plugin disable 
+     llm-rules`
+
+⏺ I have what I need to finalize the design. The app is a static,
+  dependency-free file:// tool, so the only way to reach Claude is a direct
+  browser fetch to api.anthropic.com with the
+  anthropic-dangerous-direct-browser-access: true header, using the user's own
+  key. Let me confirm the remaining product decisions.
+
+⏺ User answered Claude's questions:
+  ⎿  · Where should the Anthropic API key be stored once entered? → localStorage
+     + clear button (Recommended)
+     · Which Claude model should the analysis use by default? → Opus, with a 
+     picker
+     · How should analysis be triggered in single / compare (live sim) modes? → 
+     #1 but I want to make sure that all the data is shared with Claude if I am 
+     in the single or the experiment comparison mode. Also, in the batch mode, I
+     want to send all the data for all the runs that happened to make sure that
+     Claude has all the context on the data points and can make recommendations
+     accordingly. 
+
+⏺ Answers noted. Two things stand out and I'll bake them in:
+  - Send full data, not summaries. Single/compare → complete parameter set (with
+  plain-language meanings) + full S/I/R time series. Batch → every run's raw
+  data points across all iterations and modes, plus the computed stats.
+  - Opus default with a model picker; key in localStorage with a Clear button.
+
+  One consequence for batch: src/batch.js currently discards the raw
+  per-iteration arrays inside summarize(). To give Claude every data point, the
+  runner must surface those raw arrays. I'll fold that into the plan.
+
+  Let me write the final plan.
+
+⏺ Updated plan
+  ⎿  Error writing file
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Now I'll replace the stale batch plan with the finalized LLM-analysis plan.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ The plan is finalized and written. Here's a summary of what I'm proposing.
+
+  LLM-powered "Analyze results" — optional Anthropic key
+
+  How it works: an Analyze button reads the current on-screen experiment and
+  sends it to Claude via a direct browser call to api.anthropic.com (using the
+  anthropic-dangerous-direct-browser-access header — the only path for a static
+  file:// app). Claude returns a succinct, plain-English explanation shown in a
+  modal. Everything else works offline; the key is fully optional.
+
+  Per your answers:
+  - Key: stored in localStorage with a Clear key button (password input, "stored
+  locally" hint, never logged).
+  - Model: defaults to Opus 4.8, with a Sonnet/Haiku picker.
+  - All data, not summaries:
+    - Single/Compare → full parameter set with plain-language meanings + the
+  complete S/I/R time series (downsampled only if it exceeds ~300 points).
+    - Batch → every run's raw data points across all iterations and all three
+  population modes, plus the computed means/p-values. This requires one small
+  change to src/batch.js: runBatch currently discards the raw per-iteration
+  arrays inside summarize() — I'll have it hand both the summary and the raw
+  accumulator to onDone.
+
+  Mode-specific asks baked into the prompts: Single explains why the peak
+  happened and the S/I/R outcome; Compare judges whether the intervention worked
+  vs. expectation, flags surprises/no-change, and suggests changes (including
+  population and initially-infected); Batch narrates each mode and, where
+  results aren't significant, suggests what to change to get a significant
+  reading.
+
+  New file src/llm.js (App.LLM); touches index.html, styles.css, src/app.js,
+  src/batch.js. Verified via osascript (JavaScriptCore) syntax +
+  prompt-builder/key-handling unit tests; the visual browser pass is yours (no
+  Node/browser here).
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/inherited-pondering-ripple.md · /plan to 
+     edit
+     Plan: LLM-powered analysis of experiment results (optional Anthropic key)
+
+     Context
+
+     Epidemic Lab is a standalone, dependency-free, browser-based SIR simulator
+     that opens from
+     file:// (no build, no server; scripts share window.App). Today it runs
+     three experiment
+     modes — Single, Compare (Control vs Test), and Batch (headless paired runs
+     with a
+     paired t-test across all three population modes) — and shows numbers and
+     charts, but the user
+     has to interpret them alone.
+
+     This change adds an optional, LLM-powered "Analyze results" feature: the
+     user pastes their
+     own Anthropic Claude API key and clicks Analyze; the app sends the
+     experiment's parameters
+     (with plain-language meanings), the outcomes, and the full underlying data
+     to Claude and
+     shows a succinct, plain-English explanation of what happened and what to
+     change. It works
+     across all experiment modes and all population modes. The key is optional —
+     every
+     existing feature works without it, and the app stays fully offline until
+     the user opts in.
+
+     Because the app is a static file:// page with no backend, the only way to
+     reach Claude is a
+     direct browser fetch to https://api.anthropic.com/v1/messages using the
+     user's key and
+     the anthropic-dangerous-direct-browser-access: true header (Anthropic's
+     supported
+     browser-CORS path). The key never leaves the browser except in that request
+     to Anthropic.
+
+     Confirmed product decisions (from the user)
+
+     - Key storage: localStorage on this device, with a Clear key button.
+     Password-type
+     input; a short "stored locally in your browser" hint. Never logged.
+     - Model: default Opus 4.8 (claude-opus-4-8), with a picker: Opus 4.8,
+     Sonnet
+     (claude-sonnet-5), Haiku (claude-haiku-4-5).
+     - Trigger: an Analyze button that reads the current on-screen state.
+     - Send ALL the data (explicit): single/compare send the complete S/I/R time
+     series (not
+     just summary stats); batch sends every run's raw data points for all
+     iterations and all
+     three modes, plus the computed stats — so Claude has full context for its
+     recommendations.
+
+     Design
+
+     New module: src/llm.js (App.LLM)
+
+     Single place for key handling, the API call, and prompt building.
+
+     - Key management: getKey(), setKey(key), clearKey(), hasKey(). Persists to
+     localStorage['epidemicLab.anthropicKey'] (plus in-memory cache).
+     getModel()/setModel()
+     persist the chosen model to localStorage['epidemicLab.model'] (default
+     claude-opus-4-8).
+     - API call: analyze({ system, user }) →
+     fetch('https://api.anthropic.com/v1/messages', …)
+     with headers x-api-key, anthropic-version: 2023-06-01,
+     anthropic-dangerous-direct-browser-access: true, content-type: 
+     application/json; body
+     { model, max_tokens: 1500, system, messages:[{role:'user',content:user}] }
+     (non-streaming;
+     responses are short). Returns the concatenated text blocks from content.
+     Maps failures to
+     friendly messages: 401 → "key looks invalid", 429 → "rate limited, try
+     again", network/CORS →
+     "couldn't reach Anthropic — check your connection".
+     - Data → prompt helpers (pure functions, easy to unit-test):
+       - describeParams(paramsObj, opts) — walks App.PARAMS, and for each param
+     in scope for
+     the current mode emits label, current value (formatted via App.UI.fmt), and
+     its
+     plain-language meaning from def.help.desc. Includes the global params
+     (population, initially-infected, population mode).
+       - seriesFromSim(sim) — extracts the full sim.history time series
+     (t,s,i,r), the
+     initial S/I/R, sim.peakInfected and its time, and final S/I/R
+     (sim.counts()). If the
+     history is very long (> ~300 points) it is evenly downsampled to ~300 and
+     labeled as such;
+     otherwise sent in full.
+       - buildSingle(arm), buildCompare(control, test), buildBatch(batchData) —
+     assemble the
+     system + user prompts. System prompt fixes the persona and the "succinct,
+     simple terms, no
+     jargon" style and the mode-specific asks:
+           - Single: explain why the infection peak occurred and the outcome for
+     the overall /
+     removed / susceptible populations, in plain terms.
+         - Compare: state which parameters differ between arms; judge whether
+     outcomes matched
+     expectations (e.g. quarantine on in Test but off in Control → low peak /
+     high remaining
+     susceptible = working); flag surprises or no-change; and suggest what to
+     change —
+     including population and initially-infected — to get a representative
+     reading.
+         - Batch: for each population mode, say what happened; acknowledge
+     expected results; and
+     where a result is not expected or not statistically significant (p ≥ 0.05),
+     suggest
+     what to change (e.g. more iterations, larger population, different initial
+     infected, a
+     stronger intervention delta) to get a statistically significant reading.
+
+     Batch runner surfaces raw per-run data — src/batch.js
+
+     summarize() currently collapses the per-iteration arrays
+     (cPeak/tPeak/cRem/tRem/dPeak/dRem)
+     into means + stats and discards the raw points. To honor "send all runs":
+     - runBatch(...)'s onDone will pass both the summary and the raw
+     accumulator, e.g.
+     onDone(summarize(acc), acc). acc already holds every iteration's
+     control/test peak and
+     removed values per mode — no new computation, just stop throwing it away.
+     Rendering
+     (renderResults) is unchanged (still consumes the summary).
+
+     App wiring — src/app.js
+
+     - Store the latest batch data on app state in wireBatchControls' done
+     handler:
+     state.lastBatch = { summary, raw, control:{…params}, test:{…params}, 
+     shared:{population, initiallyInfected} }. Cleared on resetAll.
+     - Add an Analyze handler that dispatches on viewMode:
+       - single → App.LLM.buildSingle(arms.test) (single view shows the
+     Test/Treatment arm).
+       - compare → App.LLM.buildCompare(arms.control, arms.test).
+       - batch → if state.lastBatch is set, App.LLM.buildBatch(state.lastBatch);
+     otherwise show
+     "Run the experiment first."
+       - Each arm bundle already carries its sim (with history, peakInfected,
+     counts()) and
+     its live params; global params come from existing app state.
+     - If !App.LLM.hasKey() → open the key panel and show an inline "Add your
+     Anthropic key to use
+     analysis" note instead of calling the API.
+     - Wire the key input, model <select>, and Clear button to App.LLM.
+
+     UI — index.html + styles.css
+
+     - Analyze button (#analyzeBtn, e.g. "✨ Analyze") in Row 2 (Experiment)
+     alongside the run
+     controls — enabled in every mode.
+     - Key/model settings as a compact <details> ("AI analysis") in the top bar:
+     password
+     input #apiKey, model <select> #analyzeModel (Opus 4.8 / Sonnet / Haiku),
+     Clear key
+     button, and the "stored locally in your browser" hint.
+     - Results overlay #analysisModal (mode-agnostic; works over arms and the
+     batch section):
+     title, scrollable body, a loading spinner, an error area, and a Close
+     button. A tiny safe
+     text renderer (HTML-escape, then **bold**, -  bullets, and newlines → <br>)
+     formats
+     Claude's lightly-marked-up reply. Styled to match the existing dark theme.
+     - Load src/llm.js after src/batch.js and before src/app.js in index.html.
+
+     Critical files
+
+     - src/llm.js (new) — key/model persistence, direct browser API call, prompt
+     builders + data
+     extraction. App.LLM.
+     - src/batch.js — pass the raw per-iteration accumulator to onDone alongside
+     the summary.
+     - src/app.js — retain state.lastBatch, wire Analyze/key/model, dispatch per
+     mode.
+     - index.html — Analyze button, AI-analysis settings <details>,
+     #analysisModal, script tag.
+     - styles.css — settings cluster, Analyze button, modal/overlay + spinner
+     styling.
+
+     Reuse of existing code
+
+     - App.PARAMS / def.help.desc (src/params.js) for parameter meanings.
+     - App.UI.fmt(def, v) (src/ui.js) to format values exactly as the panels do.
+     - sim.history, sim.peakInfected, sim.counts() (src/simulation.js) for time
+     series.
+     - App.Batch accumulator arrays (src/batch.js) for raw batch data; App.Stats
+     for p-values.
+
+     Verification
+
+     - Syntax: parse-only check of all src/*.js via osascript -l JavaScript (no
+     Node here).
+     - Prompt-builder unit tests (JavaScriptCore, mock App objects):
+     describeParams includes
+     only in-scope params with their meanings; seriesFromSim downsamples a
+     >300-point history to
+     ~300 and preserves peak/initial/final; buildCompare names the differing
+     params; buildBatch
+     includes every raw run value and each mode's p-value/significance.
+     - Key handling: setKey/getKey/clearKey round-trip against a stubbed
+     localStorage;
+     analyze() builds the correct headers/body (assert on a stubbed fetch) and
+     never includes
+     the key in any thrown/log message.
+     - Manual/browser (user): open index.html; without a key, Analyze prompts to
+     add one and
+     all existing features still work offline. Add a key, pick a model; in
+     Single/Compare run a sim
+     then Analyze → succinct explanation appears in the modal; in Batch, run
+     then Analyze → per-mode
+     narrative with significance-based suggestions. Try an invalid key →
+     friendly error. Clear key →
+     Analyze prompts again. (No browser/Node in this environment, so this pass
+     is the user's.)
+
+     Security / privacy
+
+     - Key is the user's secret: password input, localStorage only, Clear
+     button, never logged or
+     put in error text. Sent only to api.anthropic.com over HTTPS via the
+     documented
+     browser-direct header. Feature is fully optional; the app remains
+     offline-capable without it.
+
+     Out of scope
+
+     - Streaming responses (short outputs; non-streaming keeps it simple).
+     - Server-side proxying / hiding the key (impossible for a static file://
+     app; user supplies
+     their own key knowingly).
+     - Extended-thinking mode (kept off for latency; can be added later for
+     deeper batch analysis).
+⏺ Plan approved. Let me set up task tracking and read the files I need to
+  modify.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Now let me read simulation.js (to understand history shape) and styles.css.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ I have full understanding now. Let me create tasks and implement.
+
+⏺ Now I'll create src/llm.js.
+
+⏺ Write(src/llm.js)
+  ⎿  Wrote 371 lines to src/llm.js
+       1 /*
+       3  *
+       4  * The app is a static file:// page with no backend, so the only
+       5  * Claude is a direct browser fetch to the Anthropic API using t
+       6  * key plus the `anthropic-dangerous-direct-browser-access` head
+         er. The key is
+         r button) and in
+       8  * memory, is sent only to api.anthropic.com over HTTPS, and is 
+       9  * placed in any error message. The whole feature is optional — 
+      10  * in the app works offline without a key.
+     … +438 lines (ctrl+o to expand)
+
+⏺ Task 1 done. Now update src/batch.js to surface the raw accumulator.
+
+⏺ Update(src/batch.js)
+  ⎿  Added 4 lines, removed 1 line
+      69        if (ti < tasks.length) {
+      70          setTimeout(tick, 0); // yield to the browser between ru
+          ns
+      71        } else {
+      72 -        onDone(summarize(acc));                                
+      72 +        // Pass the summary (for the tables) AND the raw per-it
+         +eration accumulator                                            
+      73 +        // (every run's control/test peak & removed, per mode) 
+         +so the optional LLM                                            
+      74 +        // analysis can send all data points, not just the aggr
+         +egates.                                                        
+      75 +        onDone(summarize(acc), acc);                           
+      76        }
+      77      }
+      78      setTimeout(tick, 0);
+
+⏺ Now update index.html — Analyze button, AI-settings, modal, and the script
+  tag.
+
+⏺ Update(index.html)
+  ⎿  Added 19 lines
+      60          <div class="run-controls">
+      61            <button id="playPause" class="btn btn-play" type="but
+          ton">▶ Play</button>
+      62            <button id="reset" class="btn btn-reset" type="button
+          ">⟲ Reset</button>
+      63 +          <button id="analyzeBtn" class="btn btn-ai" type="butt
+         +on">✨ Analyze</button>                                        
+      64          </div>
+      65 +                                                               
+      66 +        <!-- Optional: bring your own Anthropic key for AI anal
+         +ysis of results -->                                            
+      67 +        <details id="aiSettings" class="ai-settings">          
+      68 +          <summary>AI analysis</summary>                       
+      69 +          <div class="ai-settings-body">                       
+      70 +            <label class="ctl ctl-inline">                     
+      71 +              <span class="ctl-label">Anthropic API key</span> 
+      72 +              <input id="apiKey" type="password" placeholder="s
+         +k-ant-…"                                                       
+      73 +                     autocomplete="off" spellcheck="false" />  
+      74 +            </label>                                           
+      75 +            <label class="ctl ctl-inline">                     
+      76 +              <span class="ctl-label">Model</span>             
+      77 +              <select id="analyzeModel" class="select"></select
+         +>                                                              
+      78 +            </label>                                           
+      79 +            <button id="clearKey" class="btn" type="button">Cle
+         +ar key</button>                                                
+      80 +            <span class="ai-hint">Optional. Your key is stored 
+         +locally in this browser and sent only to Anthropic.</span>     
+      81 +          </div>                                               
+      82 +        </details>                                             
+      83        </div>
+      84      </div>
+      85  
+
+⏺ Update(index.html)
+  ⎿  Added 18 lines
+      165      <div id="batchResults" class="batch-results"></div>
+      166    </section>
+      167  
+      168 +  <!-- ===================== AI analysis modal (optional) ====
+          +=============== -->                                           
+      169 +  <div id="analysisModal" class="modal" hidden>               
+      170 +    <div class="modal-backdrop" data-close="1"></div>         
+      171 +    <div class="modal-card" role="dialog" aria-modal="true" ar
+          +ia-labelledby="analysisTitle">                                
+      172 +      <div class="modal-head">                                
+      173 +        <h2 id="analysisTitle">Analysis</h2>                  
+      174 +        <button id="analysisClose" class="modal-close" type="b
+          +utton" aria-label="Close">×</button>                          
+      175 +      </div>                                                  
+      176 +      <div class="modal-body">                                
+      177 +        <div id="analysisSpinner" class="spinner" hidden>     
+      178 +          <span class="spin"></span> Analyzing results…       
+      179 +        </div>                                                
+      180 +        <div id="analysisError" class="analysis-error" hidden>
+          +</div>                                                        
+      181 +        <div id="analysisText" class="analysis-text"></div>   
+      182 +      </div>                                                  
+      183 +    </div>                                                    
+      184 +  </div>                                                      
+      185 +                                                              
+      186    <!-- Vendored Chart.js (works fully offline). CDN alternativ
+           e:
+      187         https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.
+           umd.min.js -->
+      188    <script src="lib/chart.umd.min.js"></script>
+
+⏺ Update(index.html)
+  ⎿  Added 1 line
+      196    <script src="src/ui.js"></script>
+      197    <script src="src/stats.js"></script>
+      198    <script src="src/batch.js"></script>
+      199 +  <script src="src/llm.js"></script>                          
+      200    <script src="src/app.js"></script>
+      201  </body>
+      202  </html>
+
+⏺ Task 3 done. Now wire src/app.js. First add the lastBatch state var and a
+  params clone helper.
+
+⏺ Update(src/app.js)
+  ⎿  Added 13 lines
+      17    var timeMult = 1;
+      18    var lastTs = 0;
+      19  
+      20 +  // Snapshot of the most recent batch run (summary + raw per-i
+         +teration data +                                                
+      21 +  // the exact params used), for the optional LLM analysis. Nul
+         +l until a run.                                                 
+      22 +  var lastBatch = null;                                        
+      23 +                                                               
+      24 +  var DEFAULT_AI_HINT =                                        
+      25 +    'Optional. Your key is stored locally in this browser and s
+         +ent only to Anthropic.';                                       
+      26 +                                                               
+      27    // Per-arm bundles, keyed by 'control' / 'test'.
+      28    var arms = {};
+      29  
+      30 +  function cloneParams(p) {                                    
+      31 +    var o = {};                                                
+      32 +    for (var k in p) { if (p.hasOwnProperty(k)) { o[k] = p[k]; 
+         +} }                                                            
+      33 +    return o;                                                  
+      34 +  }                                                            
+      35 +                                                               
+      36    // ----------------------------------------------------------
+          -------- setup
+      37    function boot() {
+      38      ['control', 'test'].forEach(function (name) {
+
+⏺ Now update wireBatchControls to snapshot the batch data:
+⏺ Update(src/app.js)
+  ⎿  Added 9 lines, removed 1 line
+      298      btn.addEventListener('click', function () {
+      299        var iters = parseInt(document.getElementById('batchItera
+           tions').value, 10) || 20;
+      300        btn.disabled = true;
+      301 +      lastBatch = null; // previous results are stale once a n
+          +ew run starts                                                 
+      302        prog.textContent = 'Running… 0/' + (iters * App.Batch.MO
+           DES.length);
+      303        App.Batch.runBatch(
+      304          arms.control.params, arms.test.params, iters,
+      305          function (done, total) { prog.textContent = 'Running… 
+           ' + done + '/' + total; },
+      305 -        function (results) {                                  
+      306 +        function (results, raw) {                             
+      307            App.Batch.renderResults(document.getElementById('bat
+           chResults'), results);
+      308 +          // Snapshot the summary, every run's raw data points
+          +, and the exact                                               
+      309 +          // params used, so "Analyze" can send Claude the ful
+          +l picture.                                                    
+      310 +          lastBatch = {                                       
+      311 +            summary: results, raw: raw, iterations: iters,    
+      312 +            control: cloneParams(arms.control.params),        
+      313 +            test: cloneParams(arms.test.params)               
+      314 +          };                                                  
+      315            prog.textContent = 'Done — ' + iters + ' iterations 
+           × ' + App.Batch.MODES.length + ' modes.';
+      316            btn.disabled = false;
+      317          }
+
+⏺ Now call wireAnalysis() and add the analysis functions:
+
+⏺ Update(src/app.js)
+  ⎿  Added 126 lines
+      289      document.getElementById('viewBatch').addEventListener('cli
+           ck', function () { setView('batch'); });
+      290  
+      291      wireBatchControls();
+      292 +    wireAnalysis();                                           
+      293    }
+      294  
+      295 +  // -------------------------------------------------- LLM an
+          +alysis (optional)                                             
+      296 +  function wireAnalysis() {                                   
+      297 +    // Populate the model picker from App.LLM and reflect the 
+          +stored choice.                                                
+      298 +    var sel = document.getElementById('analyzeModel');        
+      299 +    App.LLM.MODELS.forEach(function (m) {                     
+      300 +      var o = document.createElement('option');               
+      301 +      o.value = m.id; o.textContent = m.label;                
+      302 +      sel.appendChild(o);                                     
+      303 +    });                                                       
+      304 +    sel.value = App.LLM.getModel();                           
+      305 +    sel.addEventListener('change', function () { App.LLM.setMo
+          +del(sel.value); });                                           
+      306 +                                                              
+      307 +    var keyInput = document.getElementById('apiKey');         
+      308 +    var hint = document.getElementById('aiHint');             
+      309 +    keyInput.value = App.LLM.getKey();                        
+      310 +    keyInput.addEventListener('input', function () {          
+      311 +      App.LLM.setKey(keyInput.value.trim());                  
+      312 +      hint.textContent = DEFAULT_AI_HINT;                     
+      313 +      hint.classList.remove('warn');                          
+      314 +    });                                                       
+      315 +                                                              
+      316 +    document.getElementById('clearKey').addEventListener('clic
+          +k', function () {                                             
+      317 +      App.LLM.clearKey();                                     
+      318 +      keyInput.value = '';                                    
+      319 +      keyInput.focus();                                       
+      320 +    });                                                       
+      321 +                                                              
+      322 +    document.getElementById('analyzeBtn').addEventListener('cl
+          +ick', runAnalysis);                                           
+      323 +    document.getElementById('analysisClose').addEventListener(
+          +'click', closeModal);                                         
+      324 +    document.querySelector('#analysisModal .modal-backdrop')  
+      325 +      .addEventListener('click', closeModal);                 
+      326 +    document.addEventListener('keydown', function (e) {       
+      327 +      if (e.key === 'Escape' && !document.getElementById('anal
+          +ysisModal').hidden) {                                         
+      328 +        closeModal();                                         
+      329 +      }                                                       
+      330 +    });                                                       
+      331 +  }                                                           
+      332 +                                                              
+      333 +  function promptForKey() {                                   
+      334 +    var d = document.getElementById('aiSettings');            
+      335 +    d.open = true;                                            
+      336 +    var hint = document.getElementById('aiHint');             
+      337 +    hint.textContent = 'Enter your Anthropic key above to anal
+          +yze — it stays in this browser.';                             
+      338 +    hint.classList.add('warn');                               
+      339 +    document.getElementById('apiKey').focus();                
+      340 +  }                                                           
+      341 +                                                              
+      342 +  function runAnalysis() {                                    
+      343 +    if (!App.LLM.hasKey()) { promptForKey(); return; }        
+      344 +                                                              
+      345 +    var prompt, title;                                        
+      346 +    if (viewMode === 'single') {                              
+      347 +      prompt = App.LLM.buildSingle(arms.test);                
+      348 +      title = 'Single-run analysis';                          
+      349 +    } else if (viewMode === 'compare') {                      
+      350 +      prompt = App.LLM.buildCompare(arms.control, arms.test); 
+      351 +      title = 'Control vs Treatment analysis';                
+      352 +    } else { // batch                                         
+      353 +      if (!lastBatch) {                                       
+      354 +        openModal('Batch analysis');                          
+      355 +        showError('Run the experiment first, then click Analyz
+          +e.');                                                         
+      356 +        return;                                               
+      357 +      }                                                       
+      358 +      prompt = App.LLM.buildBatch(lastBatch);                 
+      359 +      title = 'Batch experiment analysis';                    
+      360 +    }                                                         
+      361 +                                                              
+      362 +    openModal(title);                                         
+      363 +    showSpinner();                                            
+      364 +    App.LLM.analyze(prompt).then(function (text) {            
+      365 +      showResult(text);                                       
+      366 +    }, function (err) {                                       
+      367 +      showError((err && err.message) ? err.message : 'Somethin
+          +g went wrong.');                                              
+      368 +    });                                                       
+      369 +  }                                                           
+      370 +                                                              
+      371 +  // ---- analysis modal -------------------------------------
+          +--------------                                                
+      372 +  function openModal(title) {                                 
+      373 +    document.getElementById('analysisTitle').textContent = tit
+          +le;                                                           
+      374 +    document.getElementById('analysisModal').hidden = false;  
+      375 +  }                                                           
+      376 +  function closeModal() {                                     
+      377 +    document.getElementById('analysisModal').hidden = true;   
+      378 +  }                                                           
+      379 +  function showSpinner() {                                    
+      380 +    document.getElementById('analysisSpinner').hidden = false;
+      381 +    document.getElementById('analysisError').hidden = true;   
+      382 +    document.getElementById('analysisText').innerHTML = '';   
+      383 +  }                                                           
+      384 +  function showError(msg) {                                   
+      385 +    document.getElementById('analysisSpinner').hidden = true; 
+      386 +    var e = document.getElementById('analysisError');         
+      387 +    e.hidden = false; e.textContent = msg;                    
+      388 +    document.getElementById('analysisText').innerHTML = '';   
+      389 +  }                                                           
+      390 +  function showResult(text) {                                 
+      391 +    document.getElementById('analysisSpinner').hidden = true; 
+      392 +    document.getElementById('analysisError').hidden = true;   
+      393 +    document.getElementById('analysisText').innerHTML = render
+          +Markish(text);                                                
+      394 +  }                                                           
+      395 +                                                              
+      396 +  // Minimal, safe formatter for Claude's lightly-marked-up re
+          +ply: HTML-escape,                                             
+      397 +  // then honor **bold**, "- " bullets, blank lines, and parag
+          +raphs.                                                        
+      398 +  function renderMarkish(text) {                              
+      399 +    var esc = String(text)                                    
+      400 +      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>
+          +/g, '&gt;');                                                  
+      401 +    esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>
+          +');                                                           
+      402 +    var lines = esc.split('\n');                              
+      403 +    var html = '';                                            
+      404 +    var inList = false;                                       
+      405 +    lines.forEach(function (ln) {                             
+      406 +      var m = /^\s*[-*•]\s+(.*)$/.exec(ln);                   
+      407 +      if (m) {                                                
+      408 +        if (!inList) { html += '<ul>'; inList = true; }       
+      409 +        html += '<li>' + m[1] + '</li>';                      
+      410 +      } else {                                                
+      411 +        if (inList) { html += '</ul>'; inList = false; }      
+      412 +        if (ln.trim() === '') { html += ''; }                 
+      413 +        else { html += '<p>' + ln + '</p>'; }                 
+      414 +      }                                                       
+      415 +    });                                                       
+      416 +    if (inList) { html += '</ul>'; }                          
+      417 +    return html;                                              
+      418 +  }                                                           
+      419 +                                                              
+      420    // Run the headless batch experiment and render the result t
+           ables.
+      421    function wireBatchControls() {
+      422      var btn = document.getElementById('runBatch');
+
+⏺ I referenced #aiHint — let me add that id to the hint span in index.html.
+
+⏺ Update(index.html)
+  ⎿  Added 1 line, removed 1 line
+      77                <select id="analyzeModel" class="select"></select
+          >
+      78              </label>
+      79              <button id="clearKey" class="btn" type="button">Cle
+          ar key</button>
+      80 -            <span class="ai-hint">Optional. Your key is stored 
+         -locally in this browser and sent only to Anthropic.</span>     
+      80 +            <span id="aiHint" class="ai-hint">Optional. Your ke
+         +y is stored locally in this browser and sent only to Anthropic.
+         +</span>                                                        
+      81            </div>
+      82          </details>
+      83        </div>
+
+⏺ Now add the styles. I'll append a new section to styles.css.
+
+⏺ Update(styles.css)
+  ⎿  Added 69 lines
+      367  @media (max-width: 1100px) {
+      368    .row-label { min-width: auto; }
+      369  }
+      370 +                                                              
+      371 +/* --------------------------- AI analysis -------------------
+          +-------------- */                                             
+      372 +.btn-ai {                                                     
+      373 +  background: #6f5bd6; border-color: #6f5bd6; color: #f4f2ff; 
+          +font-weight: 600;                                             
+      374 +}                                                             
+      375 +.btn-ai:hover { background: #7e6be0; }                        
+      376 +                                                              
+      377 +/* "AI analysis" settings disclosure in the top bar. */       
+      378 +.ai-settings { font-size: 12px; }                             
+      379 +.ai-settings > summary {                                      
+      380 +  cursor: pointer; color: var(--muted); list-style: none;     
+      381 +  padding: 6px 10px; border: 1px solid var(--border); border-r
+          +adius: 8px;                                                   
+      382 +  background: var(--panel-2); user-select: none;              
+      383 +}                                                             
+      384 +.ai-settings > summary::-webkit-details-marker { display: none
+          +; }                                                           
+      385 +.ai-settings > summary:hover { color: var(--text); }          
+      386 +.ai-settings[open] > summary { color: var(--text); border-colo
+          +r: var(--accent); }                                           
+      387 +.ai-settings-body {                                           
+      388 +  display: flex; align-items: center; gap: 12px; flex-wrap: wr
+          +ap;                                                           
+      389 +  margin-top: 8px; padding: 10px 12px;                        
+      390 +  background: var(--panel); border: 1px solid var(--border); b
+          +order-radius: 8px;                                            
+      391 +}                                                             
+      392 +.ai-settings-body input[type="password"] {                    
+      393 +  width: 220px; background: var(--panel-2); color: var(--text)
+          +;                                                             
+      394 +  border: 1px solid var(--border); border-radius: 6px; padding
+          +: 6px 8px; font-size: 13px;                                   
+      395 +}                                                             
+      396 +.ai-hint { color: var(--muted); font-size: 11px; max-width: 32
+          +0px; }                                                        
+      397 +.ai-hint.warn { color: var(--diff); }                         
+      398 +                                                              
+      399 +/* ------------------------------ Modal ----------------------
+          +-------------- */                                             
+      400 +.modal { position: fixed; inset: 0; z-index: 100; display: fle
+          +x;                                                            
+      401 +  align-items: center; justify-content: center; }             
+      402 +.modal[hidden] { display: none; }                             
+      403 +.modal-backdrop { position: absolute; inset: 0; background: rg
+          +ba(4, 7, 12, 0.66); }                                         
+      404 +.modal-card {                                                 
+      405 +  position: relative; z-index: 1;                             
+      406 +  width: min(680px, 92vw); max-height: 82vh; display: flex; fl
+          +ex-direction: column;                                         
+      407 +  background: var(--panel); border: 1px solid var(--border);  
+      408 +  border-radius: var(--radius); box-shadow: 0 18px 48px rgba(0
+          +, 0, 0, 0.6);                                                 
+      409 +}                                                             
+      410 +.modal-head {                                                 
+      411 +  display: flex; align-items: center; justify-content: space-b
+          +etween;                                                       
+      412 +  padding: 14px 18px; border-bottom: 1px solid var(--border); 
+      413 +}                                                             
+      414 +.modal-head h2 { margin: 0; font-size: 16px; }                
+      415 +.modal-close {                                                
+      416 +  background: none; border: none; color: var(--muted); font-si
+          +ze: 24px;                                                     
+      417 +  line-height: 1; cursor: pointer; padding: 0 4px;            
+      418 +}                                                             
+      419 +.modal-close:hover { color: var(--text); }                    
+      420 +.modal-body { padding: 16px 18px; overflow-y: auto; }         
+      421 +                                                              
+      422 +.spinner { color: var(--muted); display: flex; align-items: ce
+          +nter; gap: 10px; font-size: 13px; }                           
+      423 +.spin {                                                       
+      424 +  width: 16px; height: 16px; border-radius: 50%;              
+      425 +  border: 2px solid var(--border); border-top-color: var(--acc
+          +ent);                                                         
+      426 +  display: inline-block; animation: spin 0.8s linear infinite;
+      427 +}                                                             
+      428 +@keyframes spin { to { transform: rotate(360deg); } }         
+      429 +                                                              
+      430 +.analysis-error {                                             
+      431 +  color: var(--i); background: rgba(231, 76, 60, 0.10);       
+      432 +  border: 1px solid rgba(231, 76, 60, 0.35); border-radius: 8p
+          +x; padding: 10px 12px;                                        
+      433 +}                                                             
+      434 +.analysis-text { font-size: 13.5px; line-height: 1.55; }      
+      435 +.analysis-text p { margin: 0 0 10px; }                        
+      436 +.analysis-text ul { margin: 0 0 10px; padding-left: 20px; }   
+      437 +.analysis-text li { margin-bottom: 5px; }                     
+      438 +.analysis-text strong { color: var(--text); }                 
+
+⏺ All code is in place. Now let me verify with JavaScriptCore — syntax-check
+  every src/*.js and run unit tests on the new module.
+
+⏺ Write(/tmp/sims_verify.js)
+  ⎿  Wrote 178 lines to ../../../../tmp/sims_verify.js
+      1 ObjC.import('Foundation');
+      2 
+      3 function read(path) {
+      4   var s = $.NSString.stringWithContentsOfFileEncodingError(path, 
+        $.NSUTF8StringEncoding, null);
+      6 }
+      7 function writeOut(path, s) {
+      8   $(s).writeToFileAtomicallyEncodingError(path, true, $.NSUTF8Str
+        ingEncoding, null);
+      9 }
+     … +223 lines (ctrl+o to expand)
+
+⏺ Bash(osascript -l JavaScript /tmp/sims_verify.js >/dev/null
+      2>/tmp/sims_verify_err.txt; echo "exit=$?"; echo "--- report ---"; cat
+      /tmp/sims_verify_out.txt 2>/dev/nu…)
+  ⎿  exit=0
+     --- report ---
+     == Syntax (parse-only via new Function) ==
+     … +57 lines (ctrl+o to expand)
+
+⏺ All 53 checks pass — syntax on all 10 files, key/model persistence, prompt
+  builders, and the request shape. Let me do a quick cross-check that every DOM
+  id app.js references actually exists in index.html.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      ids="analyzeModel apiKey aiHint clearKey analyzeBtn analysisClose
+      analysisModal analysisTitle analysisSpinner analysisError an…)
+  ⎿  MISS #analyzeModel apiKey aiHint clearKey analyzeBtn analysisClose ana
+     lysisModal analysisTitle analysisSpinner analysisError analysisText ai
+     Settings (referenced in app.js, not in index.html)
+     … +2 lines (ctrl+o to expand)
+
+⏺ zsh doesn't word-split unquoted vars by default — let me fix the loop.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      for id in analyzeModel apiKey aiHint clearKey analyzeBtn analysisClose
+      analysisModal analysisTitle analysisSpinner analysisErr…)
+  ⎿  OK   #analyzeModel
+     OK   #apiKey
+     OK   #aiHint
+     … +11 lines (ctrl+o to expand)
+
+⏺ All ids resolve. Let me mark the tasks complete.
+⏺ Done. The optional LLM-analysis feature is implemented and verified.
+
+  What I built
+
+  New module src/llm.js (App.LLM) — the whole feature lives here:
+  - Key/model storage: localStorage (epidemicLab.anthropicKey /
+  epidemicLab.model) with an in-memory cache; getKey/setKey/clearKey/hasKey,
+  getModel/setModel. Default model Opus 4.8.
+  - Direct browser call: analyze({system, user}) → fetch to
+  api.anthropic.com/v1/messages with x-api-key, anthropic-version: 2023-06-01,
+  and anthropic-dangerous-direct-browser-access: true. Friendly status-only
+  error messages (401/429/network) — the key is never logged or echoed.
+  - Prompt builders that send all the data: describeParams (every in-scope param
+  with its plain-language meaning), seriesFromSim (full S/I/R time series,
+  downsampled to ~300 points only if longer), and buildSingle / buildCompare /
+  buildBatch. Batch sends every run's raw data points for all iterations and all
+  three modes plus the computed means/p-values/significance.
+
+  src/batch.js — runBatch's onDone now also passes the raw per-iteration
+  accumulator (previously discarded), so batch analysis has full context.
+
+  src/app.js — snapshots lastBatch (summary + raw + exact params used) when a
+  batch finishes; an Analyze handler dispatches per mode (single → Test arm,
+  compare → both arms, batch → last run, or "run first"); wires the key input /
+  model picker / Clear button; and renders Claude's reply in a modal via a small
+  safe markdown-ish formatter.
+
+  index.html + styles.css — ✨ Analyze button, a compact "AI analysis" <details>
+  (password key field, model dropdown, Clear key, "stored locally" hint), and a
+  themed results modal with spinner/error/text; loads llm.js before app.js.
+
+  Verification (JavaScriptCore — no Node/browser here)
+
+  53/53 checks passed: syntax on all 10 src/*.js; key/model round-trip incl.
+  localStorage; scope filtering (household/quarantine params show only when
+  relevant); time-series downsampling; compare diff detection; batch prompt
+  containing raw arrays + p-values + significance; and the analyze() request
+  headers/body. All DOM ids cross-check between app.js and index.html.
+
+  The visual/browser pass is yours (offline app, no browser in this
+  environment): with no key, Analyze opens the settings panel and prompts for
+  one — everything else keeps working offline; add a key, run a sim (or batch),
+  then Analyze.
+
+  Nothing is committed yet — want me to commit these changes?
+
+✻ Cogitated for 14m 20s
+
+※ recap: Goal: add optional Claude-key LLM analysis to the epidemic simulator across all modes. It's fully implemented and verified (53/53 JavaScriptCore checks pass). Next action: commit the changes once you confirm you want me to.
+
+❯ Want to make a few UI changes:                                                
+  1. The spinner, when analyzing, doesn't go away even if the response has come 
+  back from Claude.                                                             
+  2. I want to make sure that you should pause before you can hit the analyze   
+  button. The analyze button should remain disabled if the simulation hasn't    
+  been paused yet, so that we have a fixed reference point from which we can    
+  draw inference.                                                               
+  3. I would want to see that, instead of opening up the Anthropic key input    
+  box inline when the user taps on analyze, if an Anthropic key has already     
+  been set, the system goes ahead and runs the inference. If the Anthropic key  
+  hasn't been set, it opens up a dialog box which helps a user put in their     
+  keys, and then it uses that key from that point on.                           
+
+⏺ Good catches — all three are real. Quick diagnosis on #1: the spinner is
+  hidden in JS, but .spinner { display: flex } overrides the hidden attribute's
+  display:none, so it never actually hides. I'll fix that plus the other two.
+
+  Let me start with the HTML — add a key-entry dialog.
+
+⏺ Update(index.html)
+  ⎿  Added 23 lines
+      165      <div id="batchResults" class="batch-results"></div>
+      166    </section>
+      167  
+      168 +  <!-- ===================== API-key entry dialog ============
+          +============== -->                                            
+      169 +  <div id="keyModal" class="modal" hidden>                    
+      170 +    <div class="modal-backdrop" data-close="1"></div>         
+      171 +    <div class="modal-card modal-card-sm" role="dialog" aria-m
+          +odal="true" aria-labelledby="keyTitle">                       
+      172 +      <div class="modal-head">                                
+      173 +        <h2 id="keyTitle">Add your Anthropic API key</h2>     
+      174 +        <button id="keyClose" class="modal-close" type="button
+          +" aria-label="Close">×</button>                               
+      175 +      </div>                                                  
+      176 +      <div class="modal-body">                                
+      177 +        <p class="key-modal-desc">                            
+      178 +          Analysis uses your own Anthropic key. It's stored lo
+          +cally in this browser and sent                                
+      179 +          only to Anthropic. You can create a key at console.a
+          +nthropic.com.                                                 
+      180 +        </p>                                                  
+      181 +        <input id="keyModalInput" type="password" placeholder=
+          +"sk-ant-…"                                                    
+      182 +               autocomplete="off" spellcheck="false" />       
+      183 +        <div id="keyModalError" class="analysis-error" hidden>
+          +</div>                                                        
+      184 +        <div class="key-modal-actions">                       
+      185 +          <button id="keySave" class="btn btn-ai" type="button
+          +">Save &amp; analyze</button>                                 
+      186 +        </div>                                                
+      187 +      </div>                                                  
+      188 +    </div>                                                    
+      189 +  </div>                                                      
+      190 +                                                              
+      191    <!-- ===================== AI analysis modal (optional) ====
+           =============== -->
+      192    <div id="analysisModal" class="modal" hidden>
+      193      <div class="modal-backdrop" data-close="1"></div>
+
+⏺ Now the CSS: fix the spinner hidden override and style the key dialog.
+
+⏺ Update(styles.css)
+  ⎿  Added 2 lines
+      420  .modal-body { padding: 16px 18px; overflow-y: auto; }
+      421  
+      422  .spinner { color: var(--muted); display: flex; align-items: ce
+           nter; gap: 10px; font-size: 13px; }
+      423 +/* `.spinner { display:flex }` would otherwise override the `h
+          +idden` attribute. */                                          
+      424 +.spinner[hidden] { display: none; }                           
+      425  .spin {
+      426    width: 16px; height: 16px; border-radius: 50%;
+      427    border: 2px solid var(--border); border-top-color: var(--acc
+           ent);
+
+⏺ Update(styles.css)
+  ⎿  Added 10 lines
+      438  .analysis-text ul { margin: 0 0 10px; padding-left: 20px; }
+      439  .analysis-text li { margin-bottom: 5px; }
+      440  .analysis-text strong { color: var(--text); }
+      441 +                                                              
+      442 +/* Key-entry dialog (a smaller modal). */                     
+      443 +.modal-card-sm { width: min(440px, 92vw); }                   
+      444 +.key-modal-desc { color: var(--muted); font-size: 12.5px; line
+          +-height: 1.5; margin: 0 0 12px; }                             
+      445 +#keyModalInput {                                              
+      446 +  width: 100%; background: var(--panel-2); color: var(--text);
+      447 +  border: 1px solid var(--border); border-radius: 6px; padding
+          +: 9px 11px; font-size: 13px;                                  
+      448 +}                                                             
+      449 +#keyModalError { margin-top: 10px; }                          
+      450 +.key-modal-actions { display: flex; justify-content: flex-end;
+          + margin-top: 14px; }                                          
+
+⏺ Now the app.js logic. First, the play/pause handler to gate the Analyze
+  button:
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      242        playBtn.textContent = running ? '⏸ Pause' : '▶ Play';
+      243        playBtn.classList.toggle('btn-play', !running);  // gree
+           n when it will start
+      244        playBtn.classList.toggle('btn-pause', running);  // gray
+            while running
+      245 +      updateAnalyzeEnabled();  // analysis needs a paused, fix
+          +ed snapshot                                                   
+      246      });
+      247  
+      248      document.getElementById('reset').addEventListener('click',
+            function () {
+
+⏺ Now update setView and boot to refresh the button state:
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      481  
+      482      // Visible params differ (batch shows common-only) → rebui
+           ld both panels.
+      483      rebuildPanels();
+      484 +    updateAnalyzeEnabled();                                   
+      485  
+      486      // Let layout settle, then measure + restart the live arms
+            (none in batch).
+      487      requestAnimationFrame(function () {
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      70      resizeCanvases();
+      71      resetAll();
+      72      updateDiff();
+      73 +    updateAnalyzeEnabled();                                    
+      74  
+      75      window.addEventListener('resize', debounce(function () {
+      76        resizeCanvases();
+
+⏺ Now replace promptForKey/runAnalysis with the button-gating helper and the
+  key-dialog flow:
+
+⏺ Update(src/app.js)
+  ⎿  Added 41 lines, removed 8 lines
+      332      });
+      333    }
+      334  
+      335 -  function promptForKey() {                                   
+      336 -    var d = document.getElementById('aiSettings');            
+      337 -    d.open = true;                                            
+      338 -    var hint = document.getElementById('aiHint');             
+      339 -    hint.textContent = 'Enter your Anthropic key above to anal
+          -yze — it stays in this browser.';                             
+      340 -    hint.classList.add('warn');                               
+      341 -    document.getElementById('apiKey').focus();                
+      335 +  // Analysis needs a fixed reference point: enable Analyze on
+          +ly when the live                                              
+      336 +  // simulation is paused (single/compare). Batch results are 
+          +already static.                                               
+      337 +  function updateAnalyzeEnabled() {                           
+      338 +    var btn = document.getElementById('analyzeBtn');          
+      339 +    var enabled = (viewMode === 'batch') ? true : !running;   
+      340 +    btn.disabled = !enabled;                                  
+      341 +    btn.title = enabled ? '' : 'Pause the simulation to analyz
+          +e a fixed snapshot.';                                         
+      342    }
+      343  
+      344 +  // Key-entry dialog: shown only when Analyze is clicked with
+          +out a stored key.                                             
+      345 +  var pendingAnalysis = false; // run the analysis once a key 
+          +is saved                                                      
+      346 +                                                              
+      347 +  function openKeyModal() {                                   
+      348 +    var m = document.getElementById('keyModal');              
+      349 +    document.getElementById('keyModalError').hidden = true;   
+      350 +    var input = document.getElementById('keyModalInput');     
+      351 +    input.value = App.LLM.getKey();                           
+      352 +    m.hidden = false;                                         
+      353 +    input.focus();                                            
+      354 +  }                                                           
+      355 +  function closeKeyModal() {                                  
+      356 +    document.getElementById('keyModal').hidden = true;        
+      357 +    pendingAnalysis = false;                                  
+      358 +  }                                                           
+      359 +  function saveKeyFromModal() {                               
+      360 +    var input = document.getElementById('keyModalInput');     
+      361 +    var key = input.value.trim();                             
+      362 +    var err = document.getElementById('keyModalError');       
+      363 +    if (!key) {                                               
+      364 +      err.hidden = false;                                     
+      365 +      err.textContent = 'Please enter your Anthropic API key.'
+          +;                                                             
+      366 +      input.focus();                                          
+      367 +      return;                                                 
+      368 +    }                                                         
+      369 +    App.LLM.setKey(key);                                      
+      370 +    // Keep the inline settings field in sync so Clear key sti
+          +ll works.                                                     
+      371 +    document.getElementById('apiKey').value = key;            
+      372 +    document.getElementById('keyModal').hidden = true;        
+      373 +    if (pendingAnalysis) { pendingAnalysis = false; runAnalysi
+          +s(); }                                                        
+      374 +  }                                                           
+      375 +                                                              
+      376    function runAnalysis() {
+      345 -    if (!App.LLM.hasKey()) { promptForKey(); return; }        
+      377 +    if (document.getElementById('analyzeBtn').disabled) { retu
+          +rn; }                                                         
+      378 +    if (!App.LLM.hasKey()) { pendingAnalysis = true; openKeyMo
+          +dal(); return; }                                              
+      379  
+      380      var prompt, title;
+      381      if (viewMode === 'single') {
+
+⏺ Now wire the key-modal controls in wireAnalysis:
+
+⏺ Update(src/app.js)
+  ⎿  Added 13 lines, removed 3 lines
+      325      document.getElementById('analysisClose').addEventListener(
+           'click', closeModal);
+      326      document.querySelector('#analysisModal .modal-backdrop')
+      327        .addEventListener('click', closeModal);
+      328 +                                                              
+      329 +    // Key-entry dialog.                                      
+      330 +    document.getElementById('keySave').addEventListener('click
+          +', saveKeyFromModal);                                         
+      331 +    document.getElementById('keyClose').addEventListener('clic
+          +k', closeKeyModal);                                           
+      332 +    document.querySelector('#keyModal .modal-backdrop')       
+      333 +      .addEventListener('click', closeKeyModal);              
+      334 +    document.getElementById('keyModalInput').addEventListener(
+          +'keydown', function (e) {                                     
+      335 +      if (e.key === 'Enter') { saveKeyFromModal(); }          
+      336 +    });                                                       
+      337 +                                                              
+      338      document.addEventListener('keydown', function (e) {
+      329 -      if (e.key === 'Escape' && !document.getElementById('anal
+          -ysisModal').hidden) {                                         
+      330 -        closeModal();                                         
+      331 -      }                                                       
+      339 +      if (e.key !== 'Escape') { return; }                     
+      340 +      if (!document.getElementById('keyModal').hidden) { close
+          +KeyModal(); }                                                 
+      341 +      else if (!document.getElementById('analysisModal').hidde
+          +n) { closeModal(); }                                          
+      342      });
+      343    }
+      344  
+
+⏺ Let me syntax-check app.js and cross-check the new dialog ids.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e 'ObjC.import("Foundation"); var
+      s=$.NSString.stringWithContentsOfFileEncodingError("src/app.js",$.N…)
+  ⎿  app.js OK
+     --- id cross-check ---
+     OK   #keyModal
+     … +9 lines (ctrl+o to expand)
+
+⏺ All three changes are done and verified.
+
+  What changed
+
+  1. Spinner not disappearing (bug fix)
+  Root cause: .spinner { display: flex } was overriding the hidden attribute's
+  display:none, so analysisSpinner.hidden = true had no visual effect. Added
+  .spinner[hidden] { display: none; } — the spinner now clears the moment the
+  response (or an error) arrives.
+
+  2. Analyze gated on a paused simulation
+  New updateAnalyzeEnabled():
+  - Single/Compare: the ✨ Analyze button is enabled only while the sim is
+  paused (!running); it disables the instant you hit Play, with a tooltip "Pause
+  the simulation to analyze a fixed snapshot."
+  - Batch: always enabled (results are already a static snapshot).
+  Called on play/pause, on view switch, and at boot.
+
+  3. Key entry via a dialog, not the inline panel
+  Clicking Analyze now:
+  - Key already set → runs the inference immediately.
+  - No key → opens a dedicated key dialog (password field, "Save & analyze",
+  Enter-to-submit, Esc/backdrop to cancel). On save it stores the key, syncs the
+  inline settings field (so Clear key still works), and automatically proceeds 
+  with the analysis — and uses that key from then on.
+  The inline "AI analysis" panel stays for switching model / clearing the key.
+
+  Verification
+
+  app.js compiles clean (JavaScriptCore); all six new dialog ids resolve in
+  index.html; the .spinner[hidden] rule is present; updateAnalyzeEnabled is
+  defined and wired at its 3 call sites. (The visual pass is yours — no browser
+  here.)
+
+  Still uncommitted. Want me to commit all the LLM-analysis work (including
+  these fixes) now?
+
+✻ Cogitated for 2m 38s
+
+※ recap: We're adding optional Claude-powered analysis of experiment results to your Epidemic Lab simulator. All code is written and verified, including your three UI fixes (spinner, paused-only Analyze, key dialog). Next action: commit the changes if you want.
+❯ Okay, some UI finishes:                                                       
+  1. The area where we list out all the experiment modes: can we label that as  
+  "Experiment Mode" instead of just calling it "Experiment"? The Epidemic Lab   
+  title seems fine, but I think we need to rephrase the subtitle. I want to     
+  call it something like "Visualize the emerging dynamics in a viral spread and 
+  the impact of containment behaviors and actions on that spread," so create a  
+  subtitle along those lines.                                                   
+  2. There are two places where I see "Susceptible," "Infected," and "Removed"  
+  definitions and the legend associated with it. I would want to remove it from 
+  the top bar and just keep it in what shows up in the chart. I would remove    
+  the "Controlled" and "Control to Shared Seed" as well.                        
+
+⏺ On it. Let me make the edits to index.html first.
+
+⏺ Update(index.html)
+  ⎿  Added 1 line, removed 1 line
+      11    <header class="global-bar">
+      12      <div class="brand">
+      13        <h1>Epidemic Lab</h1>
+      14 -      <span class="subtitle">Visualize viral spread &amp; run A
+         -/B experiments on the SIR curve</span>                         
+      14 +      <span class="subtitle">Visualize the emergent dynamics of
+         + viral spread — and how containment behaviors and actions shape
+         + it</span>                                                     
+      15      </div>
+      16  
+      17      <div class="bar-rows">
+
+⏺ Update(index.html)
+  ⎿  Added 1 line, removed 1 line
+      49  
+      50        <!-- Row 2: experiment mode + run controls -->
+      51        <div class="bar-row">
+      52 -        <span class="row-label">Experiment</span>              
+      52 +        <span class="row-label">Experiment mode</span>         
+      53  
+      54          <div class="view-toggle" role="group" aria-label="Exper
+          iment mode">
+      55            <button id="viewSingle" class="btn toggle active" typ
+          e="button">Single</button>
+
+⏺ Now remove the top-bar legend and the Shared seed checkbox:
+
+⏺ Update(index.html)
+  ⎿  Removed 5 lines
+      40  
+      41          <!-- Global (shared) params: population, initially infe
+          cted, max household size -->
+      42          <div id="globalParams" class="global-params"></div>
+      43 -                                                               
+      44 -        <label class="ctl ctl-check">                          
+      45 -          <input id="sharedSeed" type="checkbox" checked />    
+      46 -          <span>Shared seed</span>                             
+      47 -        </label>                                               
+      43        </div>
+      44  
+      45        <!-- Row 2: experiment mode + run controls -->
+
+⏺ Update(index.html)
+  ⎿  Removed 6 lines
+      77          </details>
+      78        </div>
+      79      </div>
+      80 -                                                               
+      81 -    <div class="legend">                                       
+      82 -      <span class="legend-item"><i class="dot s"></i>Susceptibl
+         -e</span>                                                       
+      83 -      <span class="legend-item"><i class="dot i"></i>Infected</
+         -span>                                                          
+      84 -      <span class="legend-item"><i class="dot r"></i>Removed</s
+         -pan>                                                           
+      85 -    </div>                                                     
+      80    </header>
+      81  
+      82    <!-- =============================== Arms ===================
+          ============ -->
+
+⏺ Now remove the #sharedSeed wiring in app.js (the element no longer exists):
+
+⏺ Update(src/app.js)
+  ⎿  Removed 5 lines
+      265        tmVal.textContent = timeMult.toFixed(2) + '×';
+      266      });
+      267  
+      268 -    document.getElementById('sharedSeed').addEventListener('ch
+          -ange', function () {                                          
+      269 -      sharedSeed = this.checked;                              
+      270 -      resetAll();                                             
+      271 -    });                                                       
+      272 -                                                              
+      268      var popMode = document.getElementById('populationMode');
+      269      popMode.value = populationMode;
+      270      popMode.addEventListener('change', function () {
+
+⏺ Let me verify: app.js still compiles, no dangling sharedSeed/legend
+  references, and the chart keeps its own S/I/R legend.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e 'ObjC.import("Foundation"); var
+      s=$.NSString.stringWithContentsOfFileEncodingError("src/app.js",$.N…)
+  ⎿  app.js OK
+     --- stale references ---
+     sharedSeed el in html: 0
+     … +4 lines (ctrl+o to expand)
+
+⏺ All done and verified.
+
+  Changes
+
+  1. "Experiment" → "Experiment mode" — the Row 2 label now reads "Experiment
+  mode".
+  2. New subtitle — "Visualize the emergent dynamics of viral spread — and how
+  containment behaviors and actions shape it."
+  3. Removed the top-bar legend — the Susceptible/Infected/Removed swatches are
+  gone from the header; they remain in each arm's chart via Chart.js's own
+  legend (src/charts.js:86), so the definitions still show where the curves are.
+  4. Removed the "Shared seed" checkbox and its wiring in app.js. Seeds stay
+  paired (Control and Test share a seed) — that behavior is unchanged; it's just
+  no longer a toggle.
+
+  Verification: app.js compiles clean, no dangling #sharedSeed/legend references
+  remain, and the chart legend is intact. (The now-unused .legend CSS rules are
+  harmless dead styles — left in place.)
+
+  Want me to commit everything (the LLM-analysis feature plus these UI finishes)
+  now?
+
+✻ Brewed for 1m 8s
+
+※ recap: Building an optional LLM "Analyze results" feature for Epidemic Lab (browser SIR simulator), plus UI polish. Just finished the requested top-bar cleanup and subtitle change, all verified. Next action: commit the full LLM-analysis feature and UI finishes, pending your go-ahead.
+
+❯ yes commit everythin                                                          
+
+⏺ I'll commit everything. Let me check the repo state and branch first.
+
+⏺ Bash(git status && echo "--- branch ---" && git branch --show-current && echo
+      "--- diffstat ---" && git diff --stat HEAD)
+  ⎿  On branch main
+     Your branch is up to date with 'origin/main'.
+     … +24 lines (ctrl+o to expand)
+
+⏺ conversation-history.txt is a session export — I'll leave it out and commit
+  only the feature files. This project has been committed directly to main
+  throughout, so I'll keep that workflow.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add index.html styles.css src/app.js src/batch.js src/llm.js…)
+  ⎿  M  index.html
+     M  src/app.js
+     M  src/batch.js
+     … +9 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git commit -q -F - <<'EOF'…)
+  ⎿  --- result ---
+     080b205 Add optional LLM-powered analysis of experiment results
+     ?? conversation-history.txt
+
+⏺ Committed as 080b205. Now pushing to the remote (consistent with this
+  project's commit-and-push workflow):
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git push origin main 2>&1 | tail -5…)
+  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        a61cf97..080b205  main -> main
+     --- verify ---
+     … +6 lines (ctrl+o to expand)
+
+⏺ Done — committed and pushed.
+
+  - Commit 080b205 — "Add optional LLM-powered analysis of experiment results"
+  (index.html, styles.css, src/app.js, src/batch.js, src/llm.js).
+  - Pushed to origin/main (a61cf97..080b205); working tree is clean and in sync
+  with the remote.
+
+  I left conversation-history.txt out — it's the /export session dump, not part
+  of the project. If you'd rather it be ignored permanently, I can add it to
+  .gitignore; otherwise it'll just keep showing as untracked.
+✻ Cogitated for 48s
+
+❯ let's push that too. Keep it in a 'conversations' dir                         
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      mkdir -p conversations…)
+  ⎿  A  conversations/conversation-history.txt
+     --- committing ---
+     To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+     … +4 lines (ctrl+o to expand)
+
+⏺ Done. Moved the export to conversations/conversation-history.txt, committed
+  (24fcb59), and pushed to origin/main (080b205..24fcb59). Working tree is clean
+  and in sync.
+
+✻ Cogitated for 14s
+
+※ recap: Epidemic Lab (browser SIR simulator): finished and pushed the optional LLM-analysis feature plus UI finishes and the conversation export, all committed to main. Everything's clean and in sync; next action is yours, likely a browser test of the Analyze flow.
+
+❯ Remove the dot speed control                                                  
+
+⏺ Update(index.html)
+  ⎿  Removed 5 lines
+      20          <span class="row-label">Global parameters</span>
+      21  
+      22          <label class="ctl">
+      23 -          <span class="ctl-label">Dot speed <b id="dotSpeedVal"
+         ->1.0×</b></span>                                               
+      24 -          <input id="dotSpeed" type="range" min="0" max="3" ste
+         -p="0.1" value="1" />                                           
+      25 -        </label>                                               
+      26 -                                                               
+      27 -        <label class="ctl">                                    
+      23            <span class="ctl-label">Time multiplier <b id="timeMu
+          ltVal">1.0×</b></span>
+      24            <input id="timeMult" type="range" min="0.25" max="8" 
+          step="0.25" value="1" />
+      25          </label>
+
+⏺ Update(src/app.js)
+  ⎿  Removed 7 lines
+      251        resetAll();
+      252      });
+      253  
+      254 -    var ds = document.getElementById('dotSpeed');             
+      255 -    var dsVal = document.getElementById('dotSpeedVal');       
+      256 -    ds.addEventListener('input', function () {                
+      257 -      dotSpeed = parseFloat(ds.value);                        
+      258 -      dsVal.textContent = dotSpeed.toFixed(1) + '×';          
+      259 -    });                                                       
+      260 -                                                              
+      254      var tm = document.getElementById('timeMult');
+      255      var tmVal = document.getElementById('timeMultVal');
+      256      tm.addEventListener('input', function () {
+
+⏺ dotSpeed stays fixed at 1 (its former default), so movement is unchanged. Let
+  me verify no dangling references and that app.js compiles.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e 'ObjC.import("Foundation"); var
+      s=$.NSString.stringWithContentsOfFileEncodingError("src/app.js",$.N…)
+  ⎿  app.js OK
+     dotSpeed element in html: 0
+     getElementById dotSpeed in app.js: 0
+     dotSpeed var/usage still present (expected >=1): 2
+
+⏺ Clean — app.js compiles, no #dotSpeed/dotSpeedVal references remain, and
+  dotSpeed is still declared (= 1) and passed to sim.step, so movement speed is
+  unchanged. Let me commit and push.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add index.html src/app.js…)
+  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        24fcb59..437d50d  main -> main
+     437d50d Remove the dot speed control (fixed at 1x)
+
+⏺ Done. Removed the Dot speed slider from the top bar and its wiring; dot speed
+  is now fixed at 1× (movement unchanged). Committed as 437d50d and pushed to
+  origin/main (24fcb59..437d50d).
+
+✻ Worked for 41s
+
+※ recap: You're building Epidemic Lab, a browser SIR simulator, and just finished adding optional Claude-powered result analysis plus UI cleanups. Everything is committed and pushed to main. Next: tell me what you'd like to change or add.
+
+❯ I want to introduce a demo mode. The demo mode essentially gives you a set of 
+  pre-made templates that you can run simulations on to understand the impact   
+  of different parameters on the spread of the infection.                       
+                                                                                
+  The way in which I want this to show up is that the demo mode should be a     
+  separate line item or a separate row under the main heading. It helps me      
+  choose from a drop-down list, and once I make a selection, it prints out a    
+  line which tells you what it is.                                              
+                                                                                
+  The first demo mode that I would want to implement is the importance of       
+  travel restrictions. Whenever a demo mode is clicked, I want to enter the     
+  experimentation mode, essentially the comparison mode in the experimentation  
+  mode. I would want to pre-select population mode as well.                     
+                                                                                
+  For this particular case where we are measuring the impact of travel          
+  restrictions, I would want the control arm, the population mode, to be set to 
+  communities. I would want the control arm's inter-community travel            
+  percentage to be set at 8%, and the test arm to be set at 1%. We should wait  
+  for the user to click on the start button to start the animation, and we      
+  should also lay out what exactly this simulation will do.                     
+                                                                                
+  Essentially, for this one, I would want to show that this measures the impact 
+  of travel on the population of semi-connected communities. It should also     
+  say, "Hit the start button to start the simulation." We'll go over some of    
+  the other demo modes in a bit, but let's plan this out first.                 
+  ⎿  1 skill available
+  ⎿  UserPromptSubmit hook timed out after 5s — output discarded. Raise the 
+     hook's "timeout" to allow more time.
+
+⏺ Let me re-read the existing plan file, then confirm a couple of product
+  decisions before writing the new plan.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ The existing plan is the now-completed LLM feature — a different task, so I'll
+  overwrite it. I know this codebase well from the prior work, so I don't need
+  to re-explore. Two decisions will shape the implementation:
+
+⏺ User answered Claude's questions:
+  ⎿  · When a demo is selected, how should the other (non-studied) parameters be
+     handled? → Reset both arms to defaults (Recommended)
+     · After a demo is applied, if you then manually change the view, population
+     mode, or a parameter, what should happen to the demo selection + its 
+     description line? → Clear it (Recommended)
+
+⏺ Both confirmed: reset-to-defaults on apply, and clear the demo selection when
+  the user manually changes anything. I have everything I need — this is a
+  targeted change to files I know well, so I'll write the plan now.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+⏺ The plan is written. Here's the summary before you approve.
+
+  Demo mode — pre-made experiment templates
+
+  What it does: a new "Demo mode" row at the top of the bar with a dropdown of
+  curated templates. Selecting one sets up a clean A/B comparison isolating a
+  single variable, then waits for you to hit Play. A description line explains
+  the demo and prompts you to start.
+
+  First template — "Importance of travel restrictions": enters Compare mode,
+  sets population mode to Communities, and configures the arms to differ only in
+  inter-community travel — Control 8% vs Treatment 1% — paused, ready for Play.
+  Description: "Measures the impact of travel on a population of semi-connected
+  communities. Both arms are identical except inter-community travel: Control 
+  8% vs Treatment 1%. Hit ▶ Play to start the simulation."
+
+  Per your decisions:
+  - Applying a demo resets both arms to defaults first, then applies pop-mode +
+  the two travel values, so the arms differ only in the studied variable.
+  - Any manual change afterward (view, population mode, a parameter, or the link
+  toggle) clears the dropdown back to "— Choose a demo —" and hides the
+  description.
+
+  How it's built:
+  - New src/demos.js (App.DEMOS) — a data-driven registry, so each future demo
+  is just one object.
+  - index.html / styles.css — the new bar-row (dropdown + description line) and
+  its styling.
+  - src/app.js — applyDemo() (mutates arm params in place so the engine/panel
+  references stay valid, then reuses
+  setView/buildGlobalParams/rebuildPanels/resetAll/updateDiff),
+  clearDemoSelection(), and clear-on-change hooks in the existing handlers.
+
+  Verified via JavaScriptCore syntax checks + a registry unit test + id
+  cross-check; the visual pass is yours (no browser here). Future demos
+  (distancing, hygiene, quarantine, etc.) are noted as out of scope for this
+  turn.
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/inherited-pondering-ripple.md · /plan to 
+     edit
+     Plan: Demo mode — pre-made experiment templates
+
+     Context
+
+     Epidemic Lab is a standalone, dependency-free, browser SIR simulator
+     (file://, no build;
+     scripts share window.App). It has Single / Compare / Batch experiment modes
+     and, now, an
+     optional LLM analysis feature. New users don't know which parameters to
+     change to see an
+     interesting effect. Demo mode fixes that: a dropdown of curated templates
+     that each set up
+     a clean A/B comparison isolating one variable, so the user can just pick
+     one and hit Play.
+
+     This first template — "Importance of travel restrictions" — enters Compare
+     mode, sets the
+     population mode to communities, and configures the two arms to differ only
+     in
+     inter-community travel (Control 8%, Treatment 1%), then waits for the user
+     to press Play. A
+     description line explains what the demo shows and prompts them to start.
+
+     Confirmed decisions:
+     - Reset-to-defaults on apply: selecting a demo first resets BOTH arms to
+     defaults, then
+     applies population mode + the studied overrides, so the arms differ only in
+     the studied
+     variable.
+     - Clear on manual change: once a demo is applied, any manual change to the
+     view,
+     population mode, a parameter, or the link toggle resets the demo dropdown
+     to
+     "— Choose a demo —" and hides its description (so the description never
+     misrepresents the
+     on-screen setup).
+
+     Design
+
+     Demo registry — src/demos.js (new, App.DEMOS)
+
+     A data-driven array so future demos are one object each. Loaded before
+     app.js.
+     App.DEMOS = [{
+       id: 'travel-restrictions',
+       label: 'Importance of travel restrictions',
+       view: 'compare',
+       populationMode: 'communities',
+       description: 'Measures the impact of travel on a population of 
+     semi-connected communities. ' +
+         'Both arms are identical except inter-community travel: Control 8% vs 
+     Treatment 1%. ' +
+         'Hit ▶ Play to start the simulation.',
+       control: { interCommunityTravelPct: 8 },
+       test:    { interCommunityTravelPct: 1 }
+       // optional future field: globals:{population,initialInfected}
+     }];
+
+     UI — index.html + styles.css
+
+     - Add a new first .bar-row inside .bar-rows (top of the two-row bar):
+     <span class="row-label">Demo mode</span>, a <select id="demoMode" 
+     class="select">, and a
+     <p id="demoDesc" class="demo-desc" hidden> for the explanation line.
+     - styles.css: .demo-desc { color: var(--muted); font-size: 12px; margin: 0;
+     max-width: 660px; }
+     plus .demo-desc[hidden] { display: none; }.
+
+     App wiring — src/app.js
+
+     - Populate + wire the dropdown in wireGlobalControls(): a leading — Choose 
+     a demo —
+     (value '') option, then one option per App.DEMOS. On change: look up the
+     demo by id →
+     applyDemo(demo); empty selection → clearDemoSelection().
+     - applyDemo(demo) (set a module flag applyingDemo = true for its duration
+     so the
+     clear-on-change guards don't fire):
+       a. Reset both arms in place to defaults — MUST mutate the existing
+     arms[name].params
+     object (copy App.paramDefaults() keys onto it), because sim.params and the
+     built
+     panels hold a reference to that object; replacing it would desync the
+     engine.
+       b. Set populationMode, both arms' params.populationMode, and
+     #populationMode.value to
+     demo.populationMode; apply demo.globals (if any) to both arms.
+       c. Apply demo.control / demo.test overrides onto the respective arm
+     params.
+       d. Unlink arms (armsLinked = false + reset #armLink button state) so they
+     can differ.
+       e. setView(demo.view) (compare) for the class/section toggles.
+       f. buildGlobalParams() + rebuildPanels() (reflect communities: show
+     inter-community
+     travel, hide max household size) — reuses existing helpers.
+       g. Pause: running = false, reset the Play button to "▶ Play";
+     updateAnalyzeEnabled().
+       h. resizeCanvases() + resetAll() + updateDiff() (Test arm shows the
+     travel diff).
+       i. Show #demoDesc = demo.description; then applyingDemo = false.
+     - clearDemoSelection(): if applyingDemo is set, no-op; else reset
+     #demoMode.value to
+     '' and hide #demoDesc. Call it from the user-initiated entry points so a
+     manual edit
+     invalidates the demo label:
+       - the three view-toggle button click handlers
+     (viewSingle/viewCompare/viewBatch),
+       - the #populationMode change handler,
+       - onParamChange(...) (fires only from panel input, i.e. user edits),
+       - the per-slider input listeners in buildGlobalParams() (population /
+     initially-infected),
+       - the #armLink click handler.
+     (Programmatic changes inside applyDemo don't hit these paths —
+     panels/globals are set by
+     direct assignment, and setView is called directly — and the applyingDemo
+     guard covers
+     the setView class path, so nothing self-clears.)
+
+     Load order — index.html
+
+     Add <script src="src/demos.js"></script> after src/llm.js, before
+     src/app.js.
+
+     Critical files
+
+     - src/demos.js (new) — App.DEMOS template registry.
+     - index.html — new "Demo mode" bar-row (dropdown + description); demos.js
+     script tag.
+     - styles.css — .demo-desc styling.
+     - src/app.js — build/wire the dropdown, applyDemo, clearDemoSelection, and
+     the
+     clear-on-change hooks in the existing handlers.
+
+     Reuse of existing code
+
+     - App.paramDefaults() (src/params.js) for the reset baseline.
+     - setView, buildGlobalParams, rebuildPanels, resizeCanvases, resetAll,
+     updateDiff,
+     updateAnalyzeEnabled (all already in src/app.js).
+     - interCommunityTravelPct param (src/params.js, requiresCommunities,
+     default 8) — the
+     studied variable; already rendered in communities mode and read live by the
+     engine.
+
+     Verification
+
+     - Syntax: parse-only check of src/demos.js and src/app.js via osascript -l 
+     JavaScript
+     (new Function(src)), plus the other src/*.js for regressions.
+     - Registry test (JavaScriptCore, window-stub): load demos.js; assert
+     App.DEMOS[0] has
+     view==='compare', populationMode==='communities',
+     control.interCommunityTravelPct===8,
+     test.interCommunityTravelPct===1, and a description containing "travel" and
+     "Play".
+     - Id cross-check: #demoMode / #demoDesc referenced in app.js exist in
+     index.html.
+     - Manual/browser (user): pick the travel demo → view switches to Compare,
+     population mode
+     = Communities, Control inter-community travel 8% and Test 1% (Test row
+     highlighted as a
+     diff), sim paused, description line shown. Press Play → both community
+     grids animate; the
+     low-travel (Test) arm should keep the outbreak more localized. Then
+     manually change the view
+     / population mode / a slider → the demo dropdown resets to "— Choose a demo
+     —" and the
+     description disappears. (No browser/Node here, so this pass is the user's.)
+
+     Out of scope (future demos)
+
+     - Additional templates (distancing, hygiene, quarantine, household size) —
+     the registry makes
+     each a one-object addition; we'll add them in later turns.
+     - Auto-playing the demo (kept manual per the requirement: wait for Play).
+
+⏺ Plan approved. Let me create src/demos.js first, then read the current app.js
+  to make precise edits.
+
+⏺ Write(src/demos.js)
+  ⎿  Wrote 39 lines to src/demos.js
+       1 /*
+       2  * demos.js — curated experiment templates for "Demo mode".
+       4  * Each demo sets up a clean A/B comparison that isolates ONE va
+         riable so a new
+       5  * user can pick it and immediately see an effect. The registry 
+       6  * adding a demo is a single object here. app.js reads App.DEMOS
+          to build the
+       7  * dropdown and applies a selection via applyDemo().
+       9  * Demo shape:
+      10  *   id            unique identifier (dropdown option value)
+     … +36 lines (ctrl+o to expand)
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ I have the full picture. Now the app.js edits. First, the module state var:
+
+⏺ Update(src/app.js)
+  ⎿  Added 4 lines
+      21    // the exact params used), for the optional LLM analysis. Nul
+          l until a run.
+      22    var lastBatch = null;
+      23  
+      24 +  // True only while applyDemo() is programmatically reconfigur
+         +ing the app, so                                                
+      25 +  // the clear-on-change guards don't wipe the demo selection w
+         +e just applied.                                                
+      26 +  var applyingDemo = false;                                    
+      27 +                                                               
+      28    var DEFAULT_AI_HINT =
+      29      'Optional. Your key is stored locally in this browser and s
+          ent only to Anthropic.';
+      30  
+
+⏺ Now add the clear-on-change hooks. Global param sliders:
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      148        input.value = arms.test.params[def.key];
+      149  
+      150        input.addEventListener('input', function () {
+      151 +        clearDemoSelection(); // a manual edit no longer match
+          +es the demo template                                          
+      152          var v = parseFloat(input.value);
+      153          val.textContent = App.UI.fmt(def, v);
+      154          arms.control.params[def.key] = v;
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      206    }
+      207  
+      208    function onParamChange(name, key) {
+      209 +    clearDemoSelection(); // a manual edit no longer matches t
+          +he demo template                                              
+      210      var a = arms[name];
+      211      var isToggle = key === 'quarantineEnabled';
+      212  
+
+⏺ Now the population-mode change, arm-link, and view-toggle handlers:
+
+⏺ Update(src/app.js)
+  ⎿  Added 1 line
+      267      var popMode = document.getElementById('populationMode');
+      268      popMode.value = populationMode;
+      269      popMode.addEventListener('change', function () {
+      270 +      clearDemoSelection();                                   
+      271        populationMode = this.value;
+      272        arms.control.params.populationMode = populationMode;
+      273        arms.test.params.populationMode = populationMode;
+
+⏺ Update(src/app.js)
+  ⎿  Added 101 lines, removed 3 lines
+      278      });
+      279  
+      280      document.getElementById('armLink').addEventListener('click
+           ', function () {
+      281 +      clearDemoSelection();                                   
+      282        setArmsLinked(!armsLinked);
+      283      });
+      284  
+      284 -    document.getElementById('viewSingle').addEventListener('cl
+          -ick', function () { setView('single'); });                    
+      285 -    document.getElementById('viewCompare').addEventListener('c
+          -lick', function () { setView('compare'); });                  
+      286 -    document.getElementById('viewBatch').addEventListener('cli
+          -ck', function () { setView('batch'); });                      
+      285 +    document.getElementById('viewSingle').addEventListener('cl
+          +ick', function () { clearDemoSelection(); setView('single'); }
+          +);                                                            
+      286 +    document.getElementById('viewCompare').addEventListener('c
+          +lick', function () { clearDemoSelection(); setView('compare');
+          + });                                                          
+      287 +    document.getElementById('viewBatch').addEventListener('cli
+          +ck', function () { clearDemoSelection(); setView('batch'); });
+      288  
+      289      wireBatchControls();
+      290 +    wireDemos();                                              
+      291      wireAnalysis();
+      292    }
+      293  
+      294 +  // ------------------------------------------------------- D
+          +emo mode                                                      
+      295 +  function wireDemos() {                                      
+      296 +    var sel = document.getElementById('demoMode');            
+      297 +    var opt0 = document.createElement('option');              
+      298 +    opt0.value = ''; opt0.textContent = '— Choose a demo —';  
+      299 +    sel.appendChild(opt0);                                    
+      300 +    (App.DEMOS || []).forEach(function (d) {                  
+      301 +      var o = document.createElement('option');               
+      302 +      o.value = d.id; o.textContent = d.label;                
+      303 +      sel.appendChild(o);                                     
+      304 +    });                                                       
+      305 +    sel.addEventListener('change', function () {              
+      306 +      var id = sel.value;                                     
+      307 +      if (!id) { clearDemoSelection(); return; }              
+      308 +      var demo = (App.DEMOS || []).filter(function (d) { retur
+          +n d.id === id; })[0];                                         
+      309 +      if (demo) { applyDemo(demo); }                          
+      310 +    });                                                       
+      311 +  }                                                           
+      312 +                                                              
+      313 +  // Reset the demo dropdown + hide its description (unless we
+          +'re mid-apply).                                               
+      314 +  function clearDemoSelection() {                             
+      315 +    if (applyingDemo) { return; }                             
+      316 +    var sel = document.getElementById('demoMode');            
+      317 +    if (sel) { sel.value = ''; }                              
+      318 +    var desc = document.getElementById('demoDesc');           
+      319 +    if (desc) { desc.textContent = ''; desc.hidden = true; }  
+      320 +  }                                                           
+      321 +                                                              
+      322 +  // Copy every default onto an existing params object IN PLAC
+          +E (preserving its                                             
+      323 +  // identity, since the sim and panels hold a reference to it
+          +).                                                            
+      324 +  function applyDefaultsInto(target) {                        
+      325 +    var d = App.paramDefaults();                              
+      326 +    for (var k in d) { if (d.hasOwnProperty(k)) { target[k] = 
+          +d[k]; } }                                                     
+      327 +  }                                                           
+      328 +                                                              
+      329 +  // Apply a curated template: reset both arms to defaults, se
+          +t the population                                              
+      330 +  // mode + per-arm overrides, enter the demo's view, and paus
+          +e for the user to                                             
+      331 +  // press Play. Everything is programmatic, so applyingDemo g
+          +uards the clears.                                             
+      332 +  function applyDemo(demo) {                                  
+      333 +    applyingDemo = true;                                      
+      334 +                                                              
+      335 +    // 1) Clean baseline on both arms (mutate in place — keep 
+          +object identity).                                             
+      336 +    applyDefaultsInto(arms.control.params);                   
+      337 +    applyDefaultsInto(arms.test.params);                      
+      338 +                                                              
+      339 +    // 2) Population mode (both arms + the global selector).  
+      340 +    var mode = demo.populationMode || 'individuals';          
+      341 +    populationMode = mode;                                    
+      342 +    arms.control.params.populationMode = mode;                
+      343 +    arms.test.params.populationMode = mode;                   
+      344 +    document.getElementById('populationMode').value = mode;   
+      345 +                                                              
+      346 +    // 3) Overrides: shared globals, then per-arm studied vari
+          +ables.                                                        
+      347 +    function applyOver(target, over) {                        
+      348 +      if (!over) { return; }                                  
+      349 +      for (var k in over) { if (over.hasOwnProperty(k)) { targ
+          +et[k] = over[k]; } }                                          
+      350 +    }                                                         
+      351 +    applyOver(arms.control.params, demo.globals);             
+      352 +    applyOver(arms.test.params, demo.globals);                
+      353 +    applyOver(arms.control.params, demo.control);             
+      354 +    applyOver(arms.test.params, demo.test);                   
+      355 +                                                              
+      356 +    // 4) Unlink so the arms can differ.                      
+      357 +    armsLinked = false;                                       
+      358 +    var linkBtn = document.getElementById('armLink');         
+      359 +    linkBtn.classList.remove('active');                       
+      360 +    linkBtn.setAttribute('aria-pressed', 'false');            
+      361 +                                                              
+      362 +    // 5) Enter the demo's view (handles the class/section tog
+          +gles).                                                        
+      363 +    setView(demo.view || 'compare');                          
+      364 +                                                              
+      365 +    // 6) Rebuild the top-bar globals + both panels for the ne
+          +w mode/values.                                                
+      366 +    buildGlobalParams();                                      
+      367 +    rebuildPanels();                                          
+      368 +                                                              
+      369 +    // 7) Paused, ready for Play.                             
+      370 +    running = false;                                          
+      371 +    var playBtn = document.getElementById('playPause');       
+      372 +    playBtn.textContent = '▶ Play';                           
+      373 +    playBtn.classList.add('btn-play');                        
+      374 +    playBtn.classList.remove('btn-pause');                    
+      375 +    updateAnalyzeEnabled();                                   
+      376 +                                                              
+      377 +    // 8) Fresh sims + diff highlight.                        
+      378 +    resizeCanvases();                                         
+      379 +    resetAll();                                               
+      380 +    updateDiff();                                             
+      381 +                                                              
+      382 +    // 9) Show the description.                               
+      383 +    var desc = document.getElementById('demoDesc');           
+      384 +    desc.textContent = demo.description;                      
+      385 +    desc.hidden = false;                                      
+      386 +                                                              
+      387 +    applyingDemo = false;                                     
+      388 +  }                                                           
+      389 +                                                              
+      390    // -------------------------------------------------- LLM an
+           alysis (optional)
+      391    function wireAnalysis() {
+      392      // Populate the model picker from App.LLM and reflect the 
+           stored choice.
+
+⏺ Now the index.html — add the Demo mode row and the script tag:
+
+⏺ Update(index.html)
+  ⎿  Added 10 lines
+      15      </div>
+      16  
+      17      <div class="bar-rows">
+      18 +      <!-- Row 0: demo templates -->                           
+      19 +      <div class="bar-row">                                    
+      20 +        <span class="row-label">Demo mode</span>               
+      21 +        <label class="ctl ctl-inline">                         
+      22 +          <span class="ctl-label">Template</span>              
+      23 +          <select id="demoMode" class="select"></select>       
+      24 +        </label>                                               
+      25 +        <p id="demoDesc" class="demo-desc" hidden></p>         
+      26 +      </div>                                                   
+      27 +                                                               
+      28        <!-- Row 1: global parameters -->
+      29        <div class="bar-row">
+      30          <span class="row-label">Global parameters</span>
+
+⏺ Update(index.html)
+  ⎿  Added 1 line
+      214    <script src="src/stats.js"></script>
+      215    <script src="src/batch.js"></script>
+      216    <script src="src/llm.js"></script>
+      217 +  <script src="src/demos.js"></script>                        
+      218    <script src="src/app.js"></script>
+      219  </body>
+      220  </html>
+
+⏺ Now the CSS for the description line:
+
+⏺ Update(styles.css)
+  ⎿  Added 4 lines
+      326  }
+      327  .run-controls { display: flex; gap: 8px; }
+      328  
+      329 +/* Demo mode: template picker description line. */            
+      330 +.demo-desc { color: var(--muted); font-size: 12px; margin: 0; 
+          +max-width: 660px; }                                           
+      331 +.demo-desc[hidden] { display: none; }                         
+      332 +                                                              
+      333  /* Colored run buttons. */
+      334  .btn-play { background: var(--s); border-color: var(--s); colo
+           r: #08130c; font-weight: 700; }
+      335  .btn-play:hover { background: #43d67e; }
+
+⏺ Now verify — syntax on all files, the demo registry contents, and id
+  cross-check.
+
+⏺ Write(/tmp/demo_verify.js)
+  ⎿  Wrote 34 lines to ../../../../tmp/demo_verify.js
+       1 ObjC.import('Foundation');
+         dingError(p,$.NSUTF8StringEncoding,null).js; }
+       3 var DIR='/Users/sakshamg/workspace/sims/src/';
+       4 var out=[]; var pass=0, fail=0;
+       6 function check(n,c){ if(c){pass++;log('PASS  '+n);} else {fail++
+         ;log('FAIL  '+n);} }
+       8 log('== Syntax ==');
+       9 ['rng.js','params.js','agent.js','simulation.js','charts.js','ui
+         .js','stats.js','batch.js','llm.js','demos.js','app.js'].forEach
+      10   try { new Function(read(DIR+f)); check('syntax '+f, true); }
+     … +30 lines (ctrl+o to expand)
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript /tmp/demo_verify.js >/dev/null
+      2>/tmp/demo_verify_err.txt; echo "exit=$?"…)
+  ⎿  exit=0
+     == Syntax ==
+     PASS  syntax rng.js
+     … +28 lines (ctrl+o to expand)
+⏺ All 20 checks pass; clearDemoSelection is wired at all 8 call sites (+
+  definition), both ids resolve, and the script tag is in place. Let me commit
+  and push.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add index.html styles.css src/app.js src/demos.js…)
+  ⎿  M  index.html
+     M  src/app.js
+     A  src/demos.js
+     … +4 lines (ctrl+o to expand)
+
+⏺ Done — Demo mode is implemented, verified, and pushed (0dbd8a2).
+
+  What shipped
+
+  New "Demo mode" row at the top of the bar: a Template dropdown (starts at "—
+  Choose a demo —") and a description line that appears once you pick one.
+
+  First template — "Importance of travel restrictions": selecting it
+  - enters Compare mode,
+  - sets population mode to Communities,
+  - resets both arms to defaults, then sets Control inter-community travel 8% vs
+  Treatment 1% (the only difference — highlighted as a diff on the Test arm),
+  - unlinks the arms, stays paused, and shows: "Measures the impact of travel on
+  a population of semi-connected communities. Both arms are identical except 
+  inter-community travel: Control 8% vs Treatment 1%. Hit ▶ Play to start the 
+  simulation."
+
+  Clear-on-change: any manual edit afterward (view toggle, population mode, a
+  parameter, or the link button) resets the dropdown to "— Choose a demo —" and
+  hides the description, so it never misrepresents the on-screen setup.
+
+  Architecture: demos live in a data-driven src/demos.js registry — each future
+  demo (distancing, hygiene, quarantine, household size) is just one object.
+  applyDemo() reuses the existing
+  setView/buildGlobalParams/rebuildPanels/resetAll/updateDiff helpers and
+  mutates the arm params in place so the engine and panels stay wired to the
+  same objects.
+
+  Verified: 20/20 JavaScriptCore checks (syntax on all 11 scripts + registry
+  contents), id cross-check, and clearDemoSelection wired at all 8 call sites.
+  The visual/browser pass is yours: pick the demo → Compare + Communities +
+  8%/1%, paused; press Play and the low-travel arm should keep the outbreak more
+  localized.
+
+  Want me to line up the next demo templates now, or hold for your direction on
+  which variables to feature next?
+
+✻ Crunched for 5m 57s
+
+※ recap: We're building Epidemic Lab, a browser SIR simulator, and just shipped Demo mode with the "travel restrictions" template (committed and pushed). Next action is to add more demo templates once you say which variables to feature.
+
+❯ Let's make a couple of changes for the importance of travel restrictions.     
+  1. Can we create another name for the template? Maybe call it something like  
+  "Implications of Travel Restrictions" or something similar, and maybe make    
+  the description slightly more verbose to understand how it plays in the real  
+  world? For example: "Pandemic spreads, and governments impose travel          
+  restrictions. The impact of that policy would have the following impact on    
+  the spread of the infection."                                                 
+  2. I want to create another template which says something to the tune of      
+  "Importance of Personal Agency or Personal Control." For that one, I need a   
+  bit more descriptive description similar to what we have for travel           
+  restrictions. The treatment arm should have social distancing set to 20% and  
+  hygiene and prevention set to 15%, and we should default to the household     
+  mode.                                                                         
+
+⏺ This is a small, data-only change to the demo registry (src/demos.js) —
+  applyDemo() already handles per-arm overrides, population mode, and view, so
+  no new code paths are needed. I'll write the plan and the exact copy.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ The plan is a small, data-only change to src/demos.js. Summary:
+
+  Changes
+
+  1. Rename + richer description for the travel demo
+  - Label → "Implications of Travel Restrictions"
+  - New description with real-world framing: "A pandemic takes hold and 
+  governments impose travel restrictions between regions… the Control arm keeps 
+  inter-community travel at 8%, while the Treatment arm restricts it to 1%. 
+  Watch how limiting movement keeps outbreaks localized and slows spread. Hit ▶ 
+  Play…"
+  - Behavior (Compare · Communities · 8% vs 1%) unchanged.
+
+  2. New template — "Importance of Personal Agency"
+  - Households mode, Compare; Treatment arm gets social distancing 20% + hygiene
+  15%, Control stays at defaults (0%/0%) — so the arms differ only in voluntary
+  personal behavior.
+  - Descriptive copy about everyday individual choices flattening the curve
+  without mandates.
+
+  No engine or wiring changes — applyDemo()/wireDemos() already handle per-arm
+  overrides, population mode, and view, so both demos are just registry objects.
+  I kept titles per your suggestions ("Implications of Travel Restrictions",
+  "Importance of Personal Agency"); easy to tweak wording.
+
+  Verification: syntax check + registry unit test (two demos, correct
+  labels/params) + the manual browser pass.
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/inherited-pondering-ripple.md · /plan to 
+     edit
+     Plan: Demo templates — rename travel demo + add "Personal Agency"
+
+     Context
+
+     Demo mode (curated A/B templates in src/demos.js, applied by applyDemo() in
+     src/app.js)
+     already ships one template. This change is data-only — edit the App.DEMOS
+     registry to:
+     1. Rename the travel template and give it a richer, real-world description.
+     2. Add a second template showing the impact of voluntary personal behavior.
+
+     No engine or wiring changes: applyDemo() already resets both arms to
+     defaults, sets the
+     population mode + per-arm overrides, enters Compare, and pauses. Both demos
+     are just new/edited
+     objects in the registry.
+
+     Changes — src/demos.js
+
+     1) Travel template (edit in place)
+
+     - id stays travel-restrictions (unchanged — it's just the option value).
+     - label: "Implications of Travel Restrictions".
+     - description (more verbose, real-world framing):
+     ▎ "A pandemic takes hold and governments impose travel restrictions between
+     regions. This
+     ▎ demo models that policy across a set of semi-connected communities: the 
+     Control arm keeps
+     ▎ inter-community travel at 8%, while the Treatment arm restricts it to 1%.
+     Watch how limiting
+     ▎ movement between communities keeps outbreaks localized and slows the 
+     overall spread. Hit
+     ▎ ▶ Play to start the simulation."
+     - view (compare), populationMode (communities), and overrides
+     (control.interCommunityTravelPct: 8, test.interCommunityTravelPct: 1)
+     unchanged.
+
+     2) New template — "Importance of Personal Agency"
+
+     Append a second object:
+     {
+       id: 'personal-agency',
+       label: 'Importance of Personal Agency',
+       view: 'compare',
+       populationMode: 'households',
+       description:
+         'Even without government mandates, everyday individual choices shape an
+     epidemic. This ' +
+         'demo runs households where the Treatment arm adopts voluntary 
+     precautions — 20% keep ' +
+         'their distance and 15% practise good hygiene (masks, handwashing, 
+     covering coughs) — ' +
+         'while the Control arm does neither. See how modest, self-directed 
+     behavior flattens the ' +
+         'curve compared with taking no precautions. Hit ▶ Play to start the 
+     simulation.',
+       test: { socialDistancingPct: 20, hygienePct: 15 }
+       // control omitted → stays at defaults (0% distancing, 0% hygiene)
+     }
+     Rationale: both socialDistancingPct and hygienePct are common per-arm
+     controls (src/params.js,
+     defaults 0). In households mode, distancing is applied per household and
+     hygiene reduces
+     transmission on every contact (src/simulation.js _applyBehaviorFlags /
+     infection loop), so the
+     demo is valid; the Treatment arm should visibly flatten the curve vs
+     Control.
+
+     Critical files
+
+     - src/demos.js — the only file changed (edit demo #1, append demo #2).
+
+     Reuse of existing code
+
+     - applyDemo() / wireDemos() (src/app.js) — no change; they already read
+     App.DEMOS,
+     build the dropdown, and apply per-arm overrides + population mode + view.
+     - Params socialDistancingPct, hygienePct, interCommunityTravelPct
+     (src/params.js).
+
+     Verification
+
+     - Syntax: parse-only check of src/demos.js via osascript -l JavaScript (new
+     Function).
+     - Registry test (JavaScriptCore, window-stub): assert two demos exist; the
+     travel demo's
+     label is "Implications of Travel Restrictions" and its description is
+     longer/real-world; the
+     personal-agency demo has populationMode==='households',
+     test.socialDistancingPct===20,
+     test.hygienePct===15, no control overrides, and a description containing
+     "hygiene" and "Play".
+     - Manual/browser (user): pick "Importance of Personal Agency" → Compare +
+     Households, Test
+     arm shows Social distancing 20% and Hygiene 15% highlighted as diffs,
+     paused; Play → Treatment
+     curve flatter than Control. Re-check the renamed travel demo still works.
+
+     Out of scope
+
+     - Further demos (quarantine, household size) — later turns.
+
+⏺ Approved. Let me update src/demos.js.
+
+⏺ Update(src/demos.js)
+  ⎿  Added 21 lines, removed 4 lines
+      23    var DEMOS = [
+      24      {
+      25        id: 'travel-restrictions',
+      26 -      label: 'Importance of travel restrictions',              
+      26 +      label: 'Implications of Travel Restrictions',            
+      27        view: 'compare',
+      28        populationMode: 'communities',
+      29        description:
+      30 -        'Measures the impact of travel on a population of semi-
+         -connected communities. ' +                                     
+      31 -        'Both arms are identical except inter-community travel:
+         - Control 8% vs Treatment 1%. ' +                               
+      32 -        'Hit ▶ Play to start the simulation.',                 
+      30 +        'A pandemic takes hold and governments impose travel re
+         +strictions between regions. ' +                                
+      31 +        'This demo models that policy across a set of semi-conn
+         +ected communities: the Control ' +                             
+      32 +        'arm keeps inter-community travel at 8%, while the Trea
+         +tment arm restricts it to 1%. ' +                              
+      33 +        'Watch how limiting movement between communities keeps 
+         +outbreaks localized and slows ' +                              
+      34 +        'the overall spread. Hit ▶ Play to start the simulation
+         +.',                                                            
+      35        control: { interCommunityTravelPct: 8 },
+      36        test: { interCommunityTravelPct: 1 }
+      37 +    },                                                         
+      38 +    {                                                          
+      39 +      id: 'personal-agency',                                   
+      40 +      label: 'Importance of Personal Agency',                  
+      41 +      view: 'compare',                                         
+      42 +      populationMode: 'households',                            
+      43 +      description:                                             
+      44 +        'Even without government mandates, everyday individual 
+         +choices shape an epidemic. ' +                                 
+      45 +        'This demo runs households where the Treatment arm adop
+         +ts voluntary precautions — ' +                                 
+      46 +        '20% keep their distance and 15% practise good hygiene 
+         +(masks, handwashing, covering ' +                              
+      47 +        'coughs) — while the Control arm does neither. See how 
+         +modest, self-directed behavior ' +                             
+      48 +        'flattens the curve compared with taking no precautions
+         +. Hit ▶ Play to start the ' +                                  
+      49 +        'simulation.',                                         
+      50 +      test: { socialDistancingPct: 20, hygienePct: 15 }        
+      51 +      // control omitted → stays at defaults (0% distancing, 0%
+         + hygiene)                                                      
+      52      }
+      53    ];
+      54  
+
+⏺ Now verify — syntax and the registry contents.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e '…)
+  ⎿  PASS  syntax demos.js
+     PASS  two demos
+     PASS  travel label
+     … +11 lines (ctrl+o to expand)
+
+⏺ All checks pass. Committing and pushing.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add src/demos.js…)
+  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        0dbd8a2..e6ea288  main -> main
+     e6ea288 Rename travel demo and add Personal Agency demo template
+
+⏺ Done — committed (e6ea288) and pushed.
+
+  What changed (src/demos.js only)
+
+  1. Travel demo renamed + richer copy
+  - Label → "Implications of Travel Restrictions"
+  - Description now frames it in the real world: "A pandemic takes hold and 
+  governments impose travel restrictions between regions… Control keeps 
+  inter-community travel at 8%, Treatment restricts it to 1%. Watch how limiting
+  movement keeps outbreaks localized and slows the overall spread. Hit ▶ Play…"
+  (behavior unchanged: Compare · Communities · 8% vs 1%).
+
+  2. New "Importance of Personal Agency" demo
+  - Households mode, Compare; Treatment arm = social distancing 20% + hygiene 
+  15%, Control stays at defaults (0%/0%) — isolating voluntary personal
+  behavior.
+  - Copy: everyday individual choices (distancing, masks/handwashing) flattening
+  the curve without mandates.
+
+  Since applyDemo()/wireDemos() are data-driven, both demos just work — no code
+  changes. Verified: syntax + 13 registry assertions all pass. The visual pass
+  is yours: the new demo should appear in the dropdown, and picking it →
+  Households + Compare with the two Treatment values highlighted as diffs,
+  paused for Play.
+
+✻ Worked for 1m 48s
+
+※ recap: You're building Epidemic Lab, a browser SIR simulator, and just added two demo templates (renamed travel demo, new Personal Agency demo), committed and pushed. Next: open index.html in a browser to visually confirm the new demos work as expected.
+
+❯ Let's add the last demo mode, which is the implications of a quarantine       
+  policy in which we add the quarantine norm or enable the quarantine norm in   
+  the treatment arm. The quarantine threshold or activation threshold is set at 
+  5%, and quarantine compliance is set at about 20%.                            
+
+⏺ Not in plan mode now, and this is the same data-only pattern — I'll add it
+  directly. Let me append the quarantine demo to the registry.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(src/demos.js)
+  ⎿  Added 15 lines
+      49          'simulation.',
+      50        test: { socialDistancingPct: 20, hygienePct: 15 }
+      51        // control omitted → stays at defaults (0% distancing, 0%
+           hygiene)
+      52 +    },                                                         
+      53 +    {                                                          
+      54 +      id: 'quarantine-policy',                                 
+      55 +      label: 'Implications of a Quarantine Policy',            
+      56 +      view: 'compare',                                         
+      57 +      populationMode: 'individuals',                           
+      58 +      description:                                             
+      59 +        'When cases climb, authorities stand up a quarantine pr
+         +ogram to isolate the infected. ' +                             
+      60 +        'This demo enables that policy on the Treatment arm onl
+         +y: once 5% of the population has ' +                           
+      61 +        'been infected, government quarantine kicks in and 20% 
+         +of infected people comply by ' +                               
+      62 +        'moving into an isolated ward — while the Control arm h
+         +as no quarantine at all. See how ' +                           
+      63 +        'even partial isolation of the contagious blunts the pe
+         +ak. Hit ▶ Play to start the ' +                                
+      64 +        'simulation.',                                         
+      65 +      test: { quarantineEnabled: true, quarantineTriggerPct: 5,
+         + quarantineCompliancePct: 20 }                                 
+      66 +      // control omitted → stays at defaults (quarantine disabl
+         +ed)                                                            
+      67      }
+      68    ];
+      69  
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e '…)
+  ⎿  PASS  syntax demos.js
+     PASS  three demos
+     PASS  quarantine id
+     … +9 lines (ctrl+o to expand)
+
+⏺ All checks pass. Committing and pushing.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add src/demos.js…)  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        e6ea288..430b05f  main -> main
+     430b05f Add quarantine-policy demo template
+
+⏺ Done — committed (430b05f) and pushed.
+
+  New demo: "Implications of a Quarantine Policy"
+
+  - Individuals mode, Compare view.
+  - Treatment arm: quarantine enabled, activation threshold 5%, compliance 20%.
+  - Control arm: no quarantine (defaults) — so the arms differ only in the
+  quarantine policy.
+  - Copy: authorities standing up a quarantine program once 5% are infected,
+  with 20% of the infected complying by moving to an isolated ward.
+
+  I chose individuals mode since the corner quarantine ward is most visible
+  there with free-moving dots (the other two demos already showcase communities
+  and households). Verified: syntax + 11 registry assertions pass — the demo
+  dropdown now lists all three (Travel Restrictions, Personal Agency, Quarantine
+  Policy). Visual pass is yours: pick it → Individuals + Compare, Treatment
+  shows "Enable quarantine" on plus the quarantine knobs highlighted, paused for
+  Play; the Treatment peak should come in lower than Control.
+
+  That's the full set of demos you outlined. Want me to tune the
+  compliance/threshold if 20% turns out too subtle when you run it, or add any
+  other templates?
+
+✻ Sautéed for 1m 13s
+
+※ recap: Building demo templates for the Epidemic Lab SIR simulator. All three demos (travel restrictions, personal agency, quarantine policy) are implemented, verified, committed, and pushed. Next: you run them in the browser and tell me if any parameters need tuning.
+
+❯ Can we move to demo mode directly under the title and the subtext, so that    
+  the title and the subtext stay in column one and all the other global         
+  controls stay in column two on the right-hand side?                           
+  ⎿  1 skill available
+
+⏺ This is a pure layout change (HTML + CSS). Let me read the current header
+  markup to edit precisely.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Now restructure: wrap the brand + demo row into a left column, and remove the
+  demo row from .bar-rows.
+
+⏺ Update(index.html)
+  ⎿  Added 10 lines, removed 7 lines
+       9  <body>
+      10    <!-- ============================ Global controls ===========
+          ============= -->
+      11    <header class="global-bar">
+      12 -    <div class="brand">                                        
+      13 -      <h1>Epidemic Lab</h1>                                    
+      14 -      <span class="subtitle">Visualize the emergent dynamics of
+         - viral spread — and how containment behaviors and actions shape
+         - it</span>                                                     
+      15 -    </div>                                                     
+      12 +    <!-- Column 1: title, subtitle, and the demo-mode picker be
+         +neath them -->                                                 
+      13 +    <div class="brand-col">                                    
+      14 +      <div class="brand">                                      
+      15 +        <h1>Epidemic Lab</h1>                                  
+      16 +        <span class="subtitle">Visualize the emergent dynamics 
+         +of viral spread — and how containment behaviors and actions sha
+         +pe it</span>                                                   
+      17 +      </div>                                                   
+      18  
+      17 -    <div class="bar-rows">                                     
+      18 -      <!-- Row 0: demo templates -->                           
+      19 -      <div class="bar-row">                                    
+      19 +      <div class="bar-row demo-row">                           
+      20          <span class="row-label">Demo mode</span>
+      21          <label class="ctl ctl-inline">
+      22            <span class="ctl-label">Template</span>
+     ...
+      24          </label>
+      25          <p id="demoDesc" class="demo-desc" hidden></p>
+      26        </div>
+      27 +    </div>                                                     
+      28  
+      29 +    <!-- Column 2: all other global controls -->               
+      30 +    <div class="bar-rows">                                     
+      31        <!-- Row 1: global parameters -->
+      32        <div class="bar-row">
+      33          <span class="row-label">Global parameters</span>
+
+⏺ Now the CSS — top-align the columns, add the left column, and keep the
+  description contained within it.
+
+⏺ Update(styles.css)
+  ⎿  Added 12 lines, removed 1 line
+      40  /* ------------------------------- Global bar -----------------
+          -------------- */
+      41  .global-bar {
+      42    display: flex;
+      43 -  align-items: center;                                         
+      43 +  align-items: flex-start;                                     
+      44    gap: 24px;
+      45    flex-wrap: wrap;
+      46    padding: 14px 20px;
+     ...
+      48    border-bottom: 1px solid var(--border);
+      49  }
+      50  
+      51 +/* Column 1: title + subtitle + the demo picker beneath them. *
+         +/                                                              
+      52 +.brand-col {                                                   
+      53 +  display: flex;                                               
+      54 +  flex-direction: column;                                      
+      55 +  gap: 12px;                                                   
+      56 +  flex: 0 1 360px;                                             
+      57 +  min-width: 260px;                                            
+      58 +}                                                              
+      59 +.brand-col .demo-row { align-items: baseline; }                
+      60 +.brand-col .demo-desc { max-width: 100%; }                     
+      61 +                                                               
+      62  .brand h1 {
+      63    margin: 0;
+      64    font-size: 20px;
+
+⏺ Let me verify the resulting header structure is well-formed.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Structure is correct. Quick sanity check on div balance and that the demo ids
+  are intact.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      echo "open divs:  $(grep -o '<div' index.html | wc -l | tr -d ' ')"…)
+  ⎿  open divs:  43
+     close divs: 43
+     brand-col: 1  demoMode: 1  demoDesc: 1
+
+⏺ Divs balanced (43/43), ids intact. Committing and pushing.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add index.html styles.css…)
+  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        430b05f..3f58b48  main -> main
+     3f58b48 Move demo picker under the title into a left column
+
+⏺ Done — committed (3f58b48) and pushed.
+
+  Layout change
+
+  - Wrapped the title + subtitle + Demo mode picker into a left column
+  (.brand-col), so the demo dropdown (and its description line) now sits
+  directly under the subtitle.
+  - The Global parameters and Experiment mode rows stay in the right column
+  (.bar-rows).
+  - Top-aligned the two columns (align-items: flex-start) and constrained the
+  left column (flex: 0 1 360px, min 260px) so the demo description wraps within
+  it instead of pushing the right column around.
+
+  No JS changes — #demoMode/#demoDesc are referenced by id, so everything still
+  wires up. Div balance verified (43/43). Visual check is yours: on a wide
+  screen you should see title/subtitle/demo on the left and the parameter +
+  experiment controls on the right; they stack on narrow screens.
+
+✻ Brewed for 2m 7s
+
+※ recap: Building Epidemic Lab, a browser SIR simulator; just moved the demo picker into a left column and pushed it. All requested work is committed and pushed, so the next action is awaiting your direction on what to build next.
+
+❯ I want to add another demo mode comparing Ebola to COVID-19. I want to set    
+  the population mode to communities and set the population to 190, with        
+  initially infected to 3.                                                      
+  In the control arm, I want to have:                                           
+  - infection radius: 30                                                        
+  - contact time to infect: 0.5 seconds                                         
+  - infectious duration: 2 seconds                                              
+  - inter-community travel: 2%                                                  
+  In the treatment arm, which represents COVID-19, with a smaller infection     
+  radius, slightly higher contact time to infect, and higher infectious         
+  duration, I want to set:                                                      
+  - infection radius: 1 second                                                  
+  - contact time to infect: 1 second                                            
+  - infectious duration: 14 seconds                                             
+  - inter-community travel: 2%                                                  
+  In this case, the control arm represents Ebola, and the treatment arm         
+  represents COVID-19. In a typical scenario, you would see that the infection  
+  for Ebola doesn't spread a lot, but it removes a lot of people from a single  
+  community. However, COVID-19 spreads much farther, and the hypothesis here is 
+  that Ebola is much more infectious. It removes people fairly quickly, and     
+  that's the reason that it's unable to cross over to other communities and     
+  other geographies. Put that in the description.                               
+
+⏺ One value in the treatment arm looks like a typo — "infection radius: 1
+  second" (radius isn't measured in seconds, and you list contact time
+  separately as 1 second). Since the COVID infection radius drives the whole
+  demo, let me confirm it rather than guess.
+
+⏺ User answered Claude's questions:
+  ⎿  · What infection radius should the Treatment arm (COVID-19) use? 
+     (Control/Ebola is 30; you described COVID as having a 'smaller infection 
+     radius', but the value listed was '1 second' which appears to be a typo.) →
+     20 (Recommended)
+
+⏺ COVID radius = 20. Let me add the demo.
+
+⏺ Update(src/demos.js)
+  ⎿  Added 25 lines
+      64          'simulation.',
+      65        test: { quarantineEnabled: true, quarantineTriggerPct: 5,
+           quarantineCompliancePct: 20 }
+      66        // control omitted → stays at defaults (quarantine disabl
+          ed)
+      67 +    },                                                         
+      68 +    {                                                          
+      69 +      id: 'ebola-vs-covid',                                    
+      70 +      label: 'Ebola vs COVID-19',                              
+      71 +      view: 'compare',                                         
+      72 +      populationMode: 'communities',                           
+      73 +      globals: { population: 190, initialInfected: 3 },        
+      74 +      description:                                             
+      75 +        'Compares two very different diseases across a set of s
+         +emi-connected communities. The ' +                             
+      76 +        'Control arm is Ebola: a large infection radius and nea
+         +r-instant transmission make it ' +                             
+      77 +        'fiercely infectious, but a very short infectious perio
+         +d removes people so fast that ' +                              
+      78 +        'the outbreak burns itself out inside a single communit
+         +y before it can travel. The ' +                                
+      79 +        'Treatment arm is COVID-19: less intense per contact, b
+         +ut a much longer infectious ' +                                
+      80 +        'period lets it seep across communities. The hypothesis
+         + — Ebola’s very ferocity, ' +                                  
+      81 +        'infecting and removing people quickly, is exactly why 
+         +it struggles to cross over into ' +                            
+      82 +        'other communities and geographies, while milder, longe
+         +r-lasting COVID-19 spreads far ' +                             
+      83 +        'wider. Hit ▶ Play to start the simulation.',          
+      84 +      control: {                                               
+      85 +        infectionRadius: 30, contactDurationToInfect: 0.5,     
+      86 +        infectiousDuration: 2, interCommunityTravelPct: 2      
+      87 +      },                                                       
+      88 +      test: {                                                  
+      89 +        infectionRadius: 20, contactDurationToInfect: 1,       
+      90 +        infectiousDuration: 14, interCommunityTravelPct: 2     
+      91 +      }                                                        
+      92      }
+      93    ];
+      94  
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      osascript -l JavaScript -e '…)  ⎿  PASS  syntax demos.js
+     PASS  four demos
+     PASS  id ebola-vs-covid
+     … +25 lines (ctrl+o to expand)
+
+⏺ All 28 checks pass (including schema bounds). Committing and pushing.
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      git add src/demos.js…)
+  ⎿  To https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
+        3f58b48..68c6cf5  main -> main
+     68c6cf5 Add Ebola vs COVID-19 demo template
+
+⏺ Done — committed (68c6cf5) and pushed.
+
+  New demo: "Ebola vs COVID-19"
+
+  - Communities mode, Compare view; shared population 190, 3 initially infected
+  (via globals).
+  - Control = Ebola: infection radius 30, contact-to-infect 0.5s, infectious
+  duration 2s, inter-community travel 2%.
+  - Treatment = COVID-19: infection radius 20 (your pick), contact-to-infect 1s,
+  infectious duration 14s, inter-community travel 2%.
+  - Description carries your hypothesis: Ebola is fiercely infectious but
+  removes people so fast it burns out inside one community before it can travel,
+  while milder, longer-lasting COVID-19 seeps across communities.
+
+  Since travel is 2% on both arms, the highlighted diffs will be infection
+  radius, contact time, and infectious duration (not travel). Verified: syntax +
+  28 assertions including schema-bounds checks all pass. The dropdown now has
+  four demos. Visual pass is yours — expect Ebola to torch its home community
+  and stall, while COVID leaks outward over time.
+
+✻ Worked for 1m 44s
+
+※ recap: You're building Epidemic Lab, a browser SIR simulator, and just finished adding demo templates including Ebola vs COVID-19, all committed and pushed. Next action is yours: run it in the browser to eyeball the demos and confirm the behavior looks right.
+
+❯ export the conversation again and commit everything                           
+
+⏺ Bash(cd /Users/sakshamg/workspace/sims
+      echo "--- git status ---"; git status --short…)
+  ⎿  --- git status ---
+     --- conversations dir ---
+     total 1112
+     … +6 lines (ctrl+o to expand)
+
+⏺ The working tree is clean and there's no new export file — and /export is a
+  Claude Code client command that only you can trigger (I don't have a tool that
+  can generate the transcript). The existing
+  conversations/conversation-history.txt is the older Jul 27 export, already
+  committed.
+
+  To refresh it: please run /export (type it into the prompt). Last time it
+  wrote conversation-history.txt to the project root
+  (/Users/sakshamg/workspace/sims/). Once it's there, tell me and I'll move it
+  into conversations/ (overwriting the old one) and commit + push.
+
+  If instead you'd like, when you run /export you can point it directly at
+  conversations/conversation-history.txt to overwrite in place — then I'll just
+  commit. Either way, nothing else is currently uncommitted, so the export is
+  the only thing left to capture.
+
+✻ Crunched for 37s
