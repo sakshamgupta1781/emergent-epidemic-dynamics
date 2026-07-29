@@ -22,8 +22,8 @@ manipulation rather than reading.
 No build, no server, no npm, no internet. It runs straight from a file.
 
 ```bash
-git clone https://github.com/sakshamgupta1781/emergent-epidemic-dynamics.git
-cd emergent-epidemic-dynamics
+git clone https://github.com/sakshamgupta1781/epidemic-lab.git
+cd epidemic-lab
 ```
 
 Then **open `index.html`** — double-click it in your file browser (or `open index.html` on
