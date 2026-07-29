@@ -76,13 +76,14 @@ That chain — watch it → experiment on it → have it explained — is the wh
   random state, so any divergence between them is caused *only* by the parameter you changed —
   not by luck. Changed parameters are highlighted so the independent variable is obvious. This is
   a controlled experiment, not two unrelated runs side by side.
-- **Deeper modeling of populations and their behaviors through the different population modes.**
-  The same disease behaves very differently across *individuals*, *households*, and
-  *communities*. The **Ebola vs COVID-19** demo makes this vivid and counterintuitive: the *more*
-  infectious disease (Ebola — large radius, near-instant transmission) spreads *less* far,
-  because it removes its hosts so fast that it burns out inside one community before it can
-  travel. Milder, longer-lasting COVID-19 seeps across the whole map. That's a genuinely
-  non-obvious result the tool lets you *discover* rather than be told.
+- **Different population and disease modes uncover *why* an outcome is surprising.** You can run
+  the same disease across *individuals*, *households*, and *communities*, and dial in different
+  disease profiles — and it's the *interaction* between the two that produces results you wouldn't
+  predict. The **Ebola vs COVID-19** demo makes this vivid: the *more* infectious disease (Ebola —
+  large radius, near-instant transmission) actually spreads *less* far, because it removes its
+  hosts so fast that it burns out inside one community before it can travel, while milder,
+  longer-lasting COVID-19 seeps across the whole map. The tool doesn't just show you the
+  surprising result — it lets you take it apart and understand the mechanism behind it.
 - **Measuring statistical significance.** A one-off run can be noisy and high-variance, which
   makes any single result misleading. **Batch mode** runs many paired, headless simulations
   across all three population modes to tighten the confidence intervals — reporting the mean
