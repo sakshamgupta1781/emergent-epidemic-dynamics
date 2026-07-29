@@ -140,6 +140,10 @@ Each below is stated as **decision → why → tradeoff**.
 - **Model evaluations.** Build proper **evals** to measure how accurate these models actually
   are — a rigorous way to quantify the outcomes and put **confidence intervals** on them, so we
   know how far any given result can be trusted.
+- **Medical interventions.** Model the impact of **disease treatments** (which shorten the
+  infectious period or lower fatality) and a **vaccination rollout** (moving people to immune
+  before they're ever infected, at some coverage and rate), so users can weigh medical responses
+  alongside behavioral and policy ones.
 
 ---
 
